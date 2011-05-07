@@ -15,14 +15,14 @@ const (
 	EntryTypeLink
 )
 
-type ServerCon struct {
+type ServerConn struct {
 	conn net.Conn
 	bio *bufio.Reader
 }
 
 type Response struct {
 	conn net.Conn
-	c *ServerCon
+	c *ServerConn
 }
 
 type Entry struct {
@@ -34,7 +34,7 @@ type Entry struct {
 // Check if the last status code is equal to the given code
 // If it is the case, err is nil
 // Returns the status line for further processing
-func (c *ServerCon) checkStatus(expected int) (line string, err os.Error) {
+func (c *ServerConn) checkStatus(expected int) (line string, err os.Error) {
 	line, err = c.bio.ReadString('\n')
 	if err != nil {
 		return
@@ -51,24 +51,24 @@ func (c *ServerCon) checkStatus(expected int) (line string, err os.Error) {
 }
 
 // Like send() but with formating.
-func (c *ServerCon) sendf(str string, a ...interface{}) (os.Error) {
+func (c *ServerConn) sendf(str string, a ...interface{}) (os.Error) {
 	return c.send([]byte(fmt.Sprintf(str, a...)))
 }
 
 // Send a raw command on the connection.
-func (c *ServerCon) send(data []byte) (os.Error) {
+func (c *ServerConn) send(data []byte) (os.Error) {
 	_, err := c.conn.Write(data)
 	return err
 }
 
-// Connect to a ftp server and returns a ServerCon handler.
-func Connect(host, user, password string) (*ServerCon, os.Error) {
+// Connect to a ftp server and returns a ServerConn handler.
+func Connect(host, user, password string) (*ServerConn, os.Error) {
 	conn, err := net.Dial("tcp", host)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &ServerCon{conn, bufio.NewReader(conn)}
+	c := &ServerConn{conn, bufio.NewReader(conn)}
 
 	_, err = c.checkStatus(StatusReady)
 	if err != nil {
@@ -94,12 +94,12 @@ func Connect(host, user, password string) (*ServerCon, os.Error) {
 }
 
 // Like Connect() but with anonymous credentials.
-func ConnectAnonymous(host string) (*ServerCon, os.Error) {
+func ConnectAnonymous(host string) (*ServerConn, os.Error) {
 	return Connect(host, "anonymous", "anonymous")
 }
 
 // Enter extended passive mode
-func (c *ServerCon) epsv() (port int, err os.Error) {
+func (c *ServerConn) epsv() (port int, err os.Error) {
 	c.send([]byte("EPSV\r\n"))
 	line, err := c.checkStatus(StatusExtendedPassiveMode)
 	if err != nil {
@@ -116,7 +116,7 @@ func (c *ServerCon) epsv() (port int, err os.Error) {
 }
 
 // Open a new data connection using extended passive mode
-func (c *ServerCon) openDataConnection() (r *Response, err os.Error) {
+func (c *ServerConn) openDataConnection() (r *Response, err os.Error) {
 	port, err := c.epsv()
 	if err != nil {
 		return
@@ -157,7 +157,7 @@ func parseListLine(line string) (*Entry, os.Error) {
 	return e, nil
 }
 
-func (c *ServerCon) List() (entries []*Entry, err os.Error) {
+func (c *ServerConn) List() (entries []*Entry, err os.Error) {
 	r, err := c.openDataConnection()
 	if err != nil {
 		return
@@ -186,13 +186,13 @@ func (c *ServerCon) List() (entries []*Entry, err os.Error) {
 	return
 }
 
-func (c *ServerCon) ChangeDir(path string) (err os.Error) {
+func (c *ServerConn) ChangeDir(path string) (err os.Error) {
 	c.sendf("CWD %s\r\n", path);
 	_, err = c.checkStatus(StatusRequestedFileActionOK)
 	return
 }
 
-func (c *ServerCon) Get(path string) (r *Response, err os.Error) {
+func (c *ServerConn) Get(path string) (r *Response, err os.Error) {
 	r, err = c.openDataConnection()
 	if err != nil {
 		return
@@ -203,7 +203,7 @@ func (c *ServerCon) Get(path string) (r *Response, err os.Error) {
 	return
 }
 
-func (c *ServerCon) Close() {
+func (c *ServerConn) Close() {
 	c.send([]byte("QUIT\r\n"))
 	c.conn.Close()
 }
