@@ -3,6 +3,7 @@ package ftp
 import (
 	"bufio"
 	"net"
+	"net/textproto"
 	"os"
 	"fmt"
 	"strconv"
@@ -16,8 +17,8 @@ const (
 )
 
 type ServerConn struct {
-	conn net.Conn
-	bio *bufio.Reader
+	conn *textproto.Conn
+	host string
 }
 
 type Response struct {
@@ -31,60 +32,31 @@ type Entry struct {
 	Size uint64
 }
 
-// Check if the last status code is equal to the given code
-// If it is the case, err is nil
-// Returns the status line for further processing
-func (c *ServerConn) checkStatus(expected int) (line string, err os.Error) {
-	line, err = c.bio.ReadString('\n')
-	if err != nil {
-		return
-	}
-	code, err := strconv.Atoi(line[:3]) // A status is 3 digits
-	if err != nil {
-		return
-	}
-	if code != expected {
-		err = os.NewError(fmt.Sprintf("%d %s", code, statusText[code]))
-		return
-	}
-	return
-}
-
-// Like send() but with formating.
-func (c *ServerConn) sendf(str string, a ...interface{}) (os.Error) {
-	return c.send([]byte(fmt.Sprintf(str, a...)))
-}
-
-// Send a raw command on the connection.
-func (c *ServerConn) send(data []byte) (os.Error) {
-	_, err := c.conn.Write(data)
-	return err
-}
-
 // Connect to a ftp server and returns a ServerConn handler.
 func Connect(host, user, password string) (*ServerConn, os.Error) {
-	conn, err := net.Dial("tcp", host)
+	conn, err := textproto.Dial("tcp", host)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &ServerConn{conn, bufio.NewReader(conn)}
+	a := strings.Split(host, ":", 2)
+	c := &ServerConn{conn, a[0]}
 
-	_, err = c.checkStatus(StatusReady)
-	if err != nil {
-		c.Close()
-		return nil, err
-	}
-
-	c.sendf("USER %v\r\n", user)
-	_, err = c.checkStatus(StatusUserOK)
+	_, _, err = c.conn.ReadCodeLine(StatusReady)
 	if err != nil {
 		c.Close()
 		return nil, err
 	}
 
-	c.sendf("PASS %v\r\n", password)
-	_, err = c.checkStatus(StatusLoggedIn)
+	c.conn.Cmd("USER %s", user)
+	_, _, err = c.conn.ReadCodeLine(StatusUserOK)
+	if err != nil {
+		c.Close()
+		return nil, err
+	}
+
+	c.conn.Cmd("PASS %s", password)
+	_, _, err = c.conn.ReadCodeLine(StatusLoggedIn)
 	if err != nil {
 		c.Close()
 		return nil, err
@@ -100,8 +72,8 @@ func ConnectAnonymous(host string) (*ServerConn, os.Error) {
 
 // Enter extended passive mode
 func (c *ServerConn) epsv() (port int, err os.Error) {
-	c.send([]byte("EPSV\r\n"))
-	line, err := c.checkStatus(StatusExtendedPassiveMode)
+	c.conn.Cmd("EPSV")
+	_, line, err := c.conn.ReadCodeLine(StatusExtendedPassiveMode)
 	if err != nil {
 		return
 	}
@@ -123,8 +95,7 @@ func (c *ServerConn) openDataConnection() (r *Response, err os.Error) {
 	}
 
 	// Build the new net address string
-	a := strings.Split(c.conn.RemoteAddr().String(), ":", 2)
-	addr := fmt.Sprintf("%v:%v", a[0], port)
+	addr := fmt.Sprintf("%s:%d", c.host, port)
 
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -164,8 +135,8 @@ func (c *ServerConn) List() (entries []*Entry, err os.Error) {
 	}
 	defer r.Close()
 
-	c.send([]byte("LIST\r\n"))
-	_, err = c.checkStatus(StatusAboutToSend)
+	c.conn.Cmd("LIST")
+	_, _, err = c.conn.ReadCodeLine(StatusAboutToSend)
 	if err != nil {
 		return
 	}
@@ -187,8 +158,8 @@ func (c *ServerConn) List() (entries []*Entry, err os.Error) {
 }
 
 func (c *ServerConn) ChangeDir(path string) (err os.Error) {
-	c.sendf("CWD %s\r\n", path);
-	_, err = c.checkStatus(StatusRequestedFileActionOK)
+	c.conn.Cmd("CWD %s", path);
+	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
 	return
 }
 
@@ -198,20 +169,20 @@ func (c *ServerConn) Get(path string) (r *Response, err os.Error) {
 		return
 	}
 
-	c.sendf("RETR %s\r\n", path)
-	_, err = c.checkStatus(StatusAboutToSend)
+	c.conn.Cmd("RETR %s", path)
+	_, _, err = c.conn.ReadCodeLine(StatusAboutToSend)
 	return
 }
 
 func (c *ServerConn) Close() {
-	c.send([]byte("QUIT\r\n"))
+	c.conn.Cmd("QUIT")
 	c.conn.Close()
 }
 
 func (r *Response) Read(buf []byte) (int, os.Error) {
 	n, err := r.conn.Read(buf)
 	if err == os.EOF {
-		_, err2 := r.c.checkStatus(StatusClosingDataConnection)
+		_, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
 		if err2 != nil {
 			err = err2
 		}
