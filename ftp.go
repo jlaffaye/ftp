@@ -128,14 +128,14 @@ func parseListLine(line string) (*Entry, os.Error) {
 	return e, nil
 }
 
-func (c *ServerConn) List() (entries []*Entry, err os.Error) {
+func (c *ServerConn) List(path string) (entries []*Entry, err os.Error) {
 	r, err := c.openDataConnection()
 	if err != nil {
 		return
 	}
 	defer r.Close()
 
-	c.conn.Cmd("LIST")
+	c.conn.Cmd("LIST %s", path)
 	_, _, err = c.conn.ReadCodeLine(StatusAboutToSend)
 	if err != nil {
 		return
