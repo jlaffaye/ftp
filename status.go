@@ -4,6 +4,7 @@ const (
 	StatusInitiating = 100
 	StatusRestartMarker = 110
 	StatusReadyMinute = 120
+	StatusAlreadyOpen = 125
 	StatusAboutToSend = 150
 
 	StatusCommandOK = 200
@@ -28,7 +29,7 @@ const (
 
 	StatusUserOK = 331
 	StatusLoginNeedAccount = 332
-	Status350 = 350
+	StatusRequestFilePending = 350
 
 	StatusNotAvailable = 421
 	StatusCanNotOpenDataConnection = 425
@@ -75,7 +76,7 @@ var statusText = map[int]string{
 
 	StatusUserOK:			"",
 	StatusLoginNeedAccount:		"",
-	Status350:			"",
+	StatusRequestFilePending:	"",
 
 	StatusNotAvailable:		"",
 	StatusCanNotOpenDataConnection:	"",

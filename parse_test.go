@@ -5,7 +5,7 @@ import "testing"
 type line struct {
 	line string
 	name string
-	entryType int
+	entryType EntryType
 }
 
 var listTests = []line {
@@ -37,8 +37,8 @@ func TestParseListLine(t *testing.T) {
 		if entry.Name != lt.name {
 			t.Errorf("parseListLine(%v).Name = '%v', want '%v'", lt.line, entry.Name, lt.name)
 		}
-		if entry.EntryType != lt.entryType {
-			t.Errorf("parseListLine(%v).EntryType = %v, want %v", lt.line, entry.EntryType, lt.entryType,)
+		if entry.Type != lt.entryType {
+			t.Errorf("parseListLine(%v).EntryType = %v, want %v", lt.line, entry.Type, lt.entryType,)
 		}
 	}
 	for _, lt := range listTestsFail {

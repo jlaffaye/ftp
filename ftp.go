@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"bufio"
+	"io"
 	"net"
 	"net/textproto"
 	"os"
@@ -10,8 +11,10 @@ import (
 	"strings"
 )
 
+type EntryType int
+
 const (
-	EntryTypeFile = iota
+	EntryTypeFile EntryType = iota
 	EntryTypeFolder
 	EntryTypeLink
 )
@@ -21,15 +24,15 @@ type ServerConn struct {
 	host string
 }
 
-type Response struct {
-	conn net.Conn
-	c *ServerConn
-}
-
 type Entry struct {
 	Name string
-	EntryType int
+	Type EntryType
 	Size uint64
+}
+
+type response struct {
+	conn net.Conn
+	c    *ServerConn
 }
 
 // Connect to a ftp server and returns a ServerConn handler.
@@ -39,26 +42,26 @@ func Connect(host, user, password string) (*ServerConn, os.Error) {
 		return nil, err
 	}
 
-	a := strings.Split(host, ":", 2)
+	a := strings.SplitN(host, ":", 2)
 	c := &ServerConn{conn, a[0]}
 
 	_, _, err = c.conn.ReadCodeLine(StatusReady)
 	if err != nil {
-		c.Close()
+		c.Quit()
 		return nil, err
 	}
 
 	c.conn.Cmd("USER %s", user)
 	_, _, err = c.conn.ReadCodeLine(StatusUserOK)
 	if err != nil {
-		c.Close()
+		c.Quit()
 		return nil, err
 	}
 
 	c.conn.Cmd("PASS %s", password)
 	_, _, err = c.conn.ReadCodeLine(StatusLoggedIn)
 	if err != nil {
-		c.Close()
+		c.Quit()
 		return nil, err
 	}
 
@@ -88,10 +91,10 @@ func (c *ServerConn) epsv() (port int, err os.Error) {
 }
 
 // Open a new data connection using extended passive mode
-func (c *ServerConn) openDataConnection() (r *Response, err os.Error) {
+func (c *ServerConn) openDataConnection() (net.Conn, os.Error) {
 	port, err := c.epsv()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Build the new net address string
@@ -99,11 +102,25 @@ func (c *ServerConn) openDataConnection() (r *Response, err os.Error) {
 
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	r = &Response{conn, c}
-	return
+	return conn, nil
+}
+
+// Helper function to check if the last command succeeded and if it will
+// send the data to the data connection.
+// This is needed because some servers return StatusAboutToSend (150)
+// and some StatusAlreadyOpen (125)
+func (c *ServerConn) checkDataConn() os.Error {
+	code, msg, err := c.conn.ReadCodeLine(-1)
+	if err != nil {
+		return err
+	}
+	if code != StatusAlreadyOpen && code != StatusAboutToSend {
+		return os.NewError(fmt.Sprintf("%d %s", code, msg))
+	}
+	return nil
 }
 
 func parseListLine(line string) (*Entry, os.Error) {
@@ -114,14 +131,14 @@ func parseListLine(line string) (*Entry, os.Error) {
 
 	e := &Entry{}
 	switch fields[0][0] {
-		case '-':
-			e.EntryType = EntryTypeFile
-		case 'd':
-			e.EntryType = EntryTypeFolder
-		case 'l':
-			e.EntryType = EntryTypeLink
-		default:
-			return nil, os.NewError("Unknown entry type")
+	case '-':
+		e.Type = EntryTypeFile
+	case 'd':
+		e.Type = EntryTypeFolder
+	case 'l':
+		e.Type = EntryTypeLink
+	default:
+		return nil, os.NewError("Unknown entry type")
 	}
 
 	e.Name = strings.Join(fields[8:], " ")
@@ -129,14 +146,20 @@ func parseListLine(line string) (*Entry, os.Error) {
 }
 
 func (c *ServerConn) List(path string) (entries []*Entry, err os.Error) {
-	r, err := c.openDataConnection()
+	conn, err := c.openDataConnection()
 	if err != nil {
 		return
 	}
+
+	r := &response{conn, c}
 	defer r.Close()
 
-	c.conn.Cmd("LIST %s", path)
-	_, _, err = c.conn.ReadCodeLine(StatusAboutToSend)
+	_, err = c.conn.Cmd("LIST %s", path)
+	if err != nil {
+		return
+	}
+
+	err = c.checkDataConn()
 	if err != nil {
 		return
 	}
@@ -158,28 +181,109 @@ func (c *ServerConn) List(path string) (entries []*Entry, err os.Error) {
 }
 
 func (c *ServerConn) ChangeDir(path string) (err os.Error) {
-	c.conn.Cmd("CWD %s", path);
-	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	_, err = c.conn.Cmd("CWD %s", path)
+	if err == nil {
+		_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	}
 	return
 }
 
-func (c *ServerConn) Get(path string) (r *Response, err os.Error) {
-	r, err = c.openDataConnection()
+// Retrieves a remote file
+func (c *ServerConn) Retr(path string) (io.ReadCloser, os.Error) {
+	conn, err := c.openDataConnection()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	c.conn.Cmd("RETR %s", path)
-	_, _, err = c.conn.ReadCodeLine(StatusAboutToSend)
-	return
+	_, err = c.conn.Cmd("RETR %s", path)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	err = c.checkDataConn()
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	r := &response{conn, c}
+	return r, nil
 }
 
-func (c *ServerConn) Close() {
+func (c *ServerConn) Stor(name string, r io.Reader) os.Error {
+	conn, err := c.openDataConnection()
+	if err != nil {
+		return err
+	}
+
+	_, err = c.conn.Cmd("STOR %s", name)
+	if err != nil {
+		conn.Close()
+		return err
+	}
+
+	err = c.checkDataConn()
+	if err != nil {
+		conn.Close()
+		return err
+	}
+
+	_, err = io.Copy(conn, r)
+	conn.Close()
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.conn.ReadCodeLine(StatusClosingDataConnection)
+	return err
+}
+
+func (c *ServerConn) Rename(from, to string) os.Error {
+	_, err := c.conn.Cmd("RNFR %s", from)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.conn.ReadCodeLine(StatusRequestFilePending)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.conn.Cmd("RNTO %s", to)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	return err
+}
+
+func (c *ServerConn) MakeDir(name string) os.Error {
+	// todo
+	return nil
+}
+
+func (c *ServerConn) RemoveDir(name string) os.Error {
+	return nil
+}
+
+// Sends a NOOP command. Usualy used to prevent timeouts.
+func (c *ServerConn) NoOp() os.Error {
+	_, err := c.conn.Cmd("NOOP")
+	if err != nil {
+		return err
+	}
+	_, _, err = c.conn.ReadCodeLine(StatusCommandOK)
+	return err
+}
+
+func (c *ServerConn) Quit() os.Error {
 	c.conn.Cmd("QUIT")
-	c.conn.Close()
+	return c.conn.Close()
 }
 
-func (r *Response) Read(buf []byte) (int, os.Error) {
+func (r *response) Read(buf []byte) (int, os.Error) {
 	n, err := r.conn.Read(buf)
 	if err == os.EOF {
 		_, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
@@ -190,6 +294,6 @@ func (r *Response) Read(buf []byte) (int, os.Error) {
 	return n, err
 }
 
-func (r *Response) Close() os.Error {
+func (r *response) Close() os.Error {
 	return r.conn.Close()
 }
