@@ -51,5 +51,20 @@ func TestConn(t *testing.T) {
 		r.Close()
 	}
 
+	err = c.Delete("tset")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = c.MakeDir("mydir")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = c.RemoveDir("mydir")
+	if err != nil {
+		t.Error(err)
+	}
+
 	c.Quit()
 }

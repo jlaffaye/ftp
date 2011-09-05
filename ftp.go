@@ -259,13 +259,34 @@ func (c *ServerConn) Rename(from, to string) os.Error {
 	return err
 }
 
+func (c *ServerConn) Delete(name string) os.Error {
+	_, err := c.conn.Cmd("DELE %s", name)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	return err
+}
+
 func (c *ServerConn) MakeDir(name string) os.Error {
-	// todo
-	return nil
+	_, err := c.conn.Cmd("MKD %s", name)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.conn.ReadCodeLine(StatusPathCreated)
+	return err
 }
 
 func (c *ServerConn) RemoveDir(name string) os.Error {
-	return nil
+	_, err := c.conn.Cmd("RMD %s", name)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	return err
 }
 
 // Sends a NOOP command. Usualy used to prevent timeouts.
