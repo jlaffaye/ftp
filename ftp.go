@@ -36,13 +36,13 @@ type response struct {
 }
 
 // Connect to a ftp server and returns a ServerConn handler.
-func Connect(host, user, password string) (*ServerConn, os.Error) {
-	conn, err := textproto.Dial("tcp", host)
+func Connect(addr string) (*ServerConn, os.Error) {
+	conn, err := textproto.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 
-	a := strings.SplitN(host, ":", 2)
+	a := strings.SplitN(addr, ":", 2)
 	c := &ServerConn{conn, a[0]}
 
 	_, _, err = c.conn.ReadCodeLine(StatusReady)
@@ -51,26 +51,19 @@ func Connect(host, user, password string) (*ServerConn, os.Error) {
 		return nil, err
 	}
 
+	return c, nil
+}
+
+func (c *ServerConn) Login(user, password string) os.Error {
 	c.conn.Cmd("USER %s", user)
-	_, _, err = c.conn.ReadCodeLine(StatusUserOK)
+	_, _, err := c.conn.ReadCodeLine(StatusUserOK)
 	if err != nil {
-		c.Quit()
-		return nil, err
+		return err
 	}
 
 	c.conn.Cmd("PASS %s", password)
 	_, _, err = c.conn.ReadCodeLine(StatusLoggedIn)
-	if err != nil {
-		c.Quit()
-		return nil, err
-	}
-
-	return c, nil
-}
-
-// Like Connect() but with anonymous credentials.
-func ConnectAnonymous(host string) (*ServerConn, os.Error) {
-	return Connect(host, "anonymous", "anonymous")
+	return err
 }
 
 // Enter extended passive mode

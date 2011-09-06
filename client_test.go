@@ -11,7 +11,12 @@ const (
 )
 
 func TestConn(t *testing.T) {
-	c, err := ConnectAnonymous("localhost:21")
+	c, err := Connect("localhost:21")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Login("anonymous", "anonymous")
 	if err != nil {
 		t.Fatal(err)
 	}
