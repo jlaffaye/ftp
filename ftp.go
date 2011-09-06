@@ -130,7 +130,7 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend {
 		conn.Close()
-		return nil, os.NewError(fmt.Sprintf("%d %s", code, msg))
+		return nil, &textproto.Error{code, msg}
 	}
 
 	return conn, nil
