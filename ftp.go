@@ -55,14 +55,12 @@ func Connect(addr string) (*ServerConn, os.Error) {
 }
 
 func (c *ServerConn) Login(user, password string) os.Error {
-	c.conn.Cmd("USER %s", user)
-	_, _, err := c.conn.ReadCodeLine(StatusUserOK)
+	_, _, err := c.cmd(StatusUserOK, "USER %s", user)
 	if err != nil {
 		return err
 	}
 
-	c.conn.Cmd("PASS %s", password)
-	_, _, err = c.conn.ReadCodeLine(StatusLoggedIn)
+	_, _, err = c.cmd(StatusLoggedIn, "PASS %s", password)
 	return err
 }
 
@@ -84,7 +82,7 @@ func (c *ServerConn) epsv() (port int, err os.Error) {
 }
 
 // Open a new data connection using extended passive mode
-func (c *ServerConn) openDataConnection() (net.Conn, os.Error) {
+func (c *ServerConn) openDataConn() (net.Conn, os.Error) {
 	port, err := c.epsv()
 	if err != nil {
 		return nil, err
@@ -101,19 +99,41 @@ func (c *ServerConn) openDataConnection() (net.Conn, os.Error) {
 	return conn, nil
 }
 
-// Helper function to check if the last command succeeded and if it will
-// send the data to the data connection.
-// This is needed because some servers return StatusAboutToSend (150)
-// and some StatusAlreadyOpen (125)
-func (c *ServerConn) checkDataConn() os.Error {
+// Helper function to execute a command and check for the expected code
+func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int, string, os.Error) {
+	_, err := c.conn.Cmd(format, args...)
+	if err != nil {
+		return 0, "", err
+	}
+
+	code, line, err := c.conn.ReadCodeLine(expected)
+	return code, line, err
+}
+
+// Helper function to execute commands which require a data connection
+func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, os.Error) {
+	conn, err := c.openDataConn()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.conn.Cmd(format, args...)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
 	code, msg, err := c.conn.ReadCodeLine(-1)
 	if err != nil {
-		return err
+		conn.Close()
+		return nil, err
 	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend {
-		return os.NewError(fmt.Sprintf("%d %s", code, msg))
+		conn.Close()
+		return nil, os.NewError(fmt.Sprintf("%d %s", code, msg))
 	}
-	return nil
+
+	return conn, nil
 }
 
 func parseListLine(line string) (*Entry, os.Error) {
@@ -139,23 +159,13 @@ func parseListLine(line string) (*Entry, os.Error) {
 }
 
 func (c *ServerConn) List(path string) (entries []*Entry, err os.Error) {
-	conn, err := c.openDataConnection()
+	conn, err := c.cmdDataConn("LIST %s", path)
 	if err != nil {
 		return
 	}
 
 	r := &response{conn, c}
 	defer r.Close()
-
-	_, err = c.conn.Cmd("LIST %s", path)
-	if err != nil {
-		return
-	}
-
-	err = c.checkDataConn()
-	if err != nil {
-		return
-	}
 
 	bio := bufio.NewReader(r)
 	for {
@@ -173,30 +183,15 @@ func (c *ServerConn) List(path string) (entries []*Entry, err os.Error) {
 	return
 }
 
-func (c *ServerConn) ChangeDir(path string) (err os.Error) {
-	_, err = c.conn.Cmd("CWD %s", path)
-	if err == nil {
-		_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
-	}
-	return
+func (c *ServerConn) ChangeDir(path string) os.Error {
+	_, _, err := c.cmd(StatusRequestedFileActionOK, "CWD %s", path)
+	return err
 }
 
 // Retrieves a remote file
 func (c *ServerConn) Retr(path string) (io.ReadCloser, os.Error) {
-	conn, err := c.openDataConnection()
+	conn, err := c.cmdDataConn("RETR %s", path)
 	if err != nil {
-		return nil, err
-	}
-
-	_, err = c.conn.Cmd("RETR %s", path)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-
-	err = c.checkDataConn()
-	if err != nil {
-		conn.Close()
 		return nil, err
 	}
 
@@ -205,20 +200,8 @@ func (c *ServerConn) Retr(path string) (io.ReadCloser, os.Error) {
 }
 
 func (c *ServerConn) Stor(name string, r io.Reader) os.Error {
-	conn, err := c.openDataConnection()
+	conn, err := c.cmdDataConn("STOR %s", name)
 	if err != nil {
-		return err
-	}
-
-	_, err = c.conn.Cmd("STOR %s", name)
-	if err != nil {
-		conn.Close()
-		return err
-	}
-
-	err = c.checkDataConn()
-	if err != nil {
-		conn.Close()
 		return err
 	}
 
@@ -233,62 +216,33 @@ func (c *ServerConn) Stor(name string, r io.Reader) os.Error {
 }
 
 func (c *ServerConn) Rename(from, to string) os.Error {
-	_, err := c.conn.Cmd("RNFR %s", from)
+	_, _, err := c.cmd(StatusRequestFilePending, "RNFR %s", from)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = c.conn.ReadCodeLine(StatusRequestFilePending)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.conn.Cmd("RNTO %s", to)
-	if err != nil {
-		return err
-	}
-
-	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	_, _, err = c.cmd(StatusRequestedFileActionOK, "RNTO %s", to)
 	return err
 }
 
 func (c *ServerConn) Delete(name string) os.Error {
-	_, err := c.conn.Cmd("DELE %s", name)
-	if err != nil {
-		return err
-	}
-
-	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	_, _, err := c.cmd(StatusRequestedFileActionOK, "DELE %s", name)
 	return err
 }
 
 func (c *ServerConn) MakeDir(name string) os.Error {
-	_, err := c.conn.Cmd("MKD %s", name)
-	if err != nil {
-		return err
-	}
-
-	_, _, err = c.conn.ReadCodeLine(StatusPathCreated)
+	_, _, err := c.cmd(StatusPathCreated, "MKD %s", name)
 	return err
 }
 
 func (c *ServerConn) RemoveDir(name string) os.Error {
-	_, err := c.conn.Cmd("RMD %s", name)
-	if err != nil {
-		return err
-	}
-
-	_, _, err = c.conn.ReadCodeLine(StatusRequestedFileActionOK)
+	_, _, err := c.cmd(StatusRequestedFileActionOK, "RMD %s", name)
 	return err
 }
 
 // Sends a NOOP command. Usualy used to prevent timeouts.
 func (c *ServerConn) NoOp() os.Error {
-	_, err := c.conn.Cmd("NOOP")
-	if err != nil {
-		return err
-	}
-	_, _, err = c.conn.ReadCodeLine(StatusCommandOK)
+	_, _, err := c.cmd(StatusCommandOK, "NOOP")
 	return err
 }
 
