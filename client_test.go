@@ -8,6 +8,7 @@ import (
 
 const (
 	testData = "Just some text"
+	testDir = "mydir"
 )
 
 func TestConn(t *testing.T) {
@@ -61,15 +62,39 @@ func TestConn(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = c.MakeDir("mydir")
+	err = c.MakeDir(testDir)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = c.RemoveDir("mydir")
+	err = c.ChangeDir(testDir)
+	if err != nil {
+		t.Error(err)
+	}
+
+	dir, err := c.CurrentDir()
+	if err != nil {
+		t.Error(err)
+	} else {
+		if dir != "/" + testDir {
+			t.Error("Wrong dir: " + dir)
+		}
+	}
+
+	err = c.ChangeDirToParent()
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = c.RemoveDir(testDir)
 	if err != nil {
 		t.Error(err)
 	}
 
 	c.Quit()
+
+	err = c.NoOp()
+	if err == nil {
+		t.Error("Expected error")
+	}
 }

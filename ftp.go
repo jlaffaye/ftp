@@ -188,6 +188,27 @@ func (c *ServerConn) ChangeDir(path string) os.Error {
 	return err
 }
 
+func (c *ServerConn) ChangeDirToParent() os.Error {
+	_, _, err := c.cmd(StatusRequestedFileActionOK, "CDUP")
+	return err
+}
+
+func (c *ServerConn) CurrentDir() (string, os.Error) {
+	_, msg, err := c.cmd(StatusPathCreated, "PWD")
+	if err != nil {
+		return "", err
+	}
+
+	start := strings.Index(msg, "\"")
+	end := strings.LastIndex(msg, "\"")
+
+	if start == -1 || end == -1 {
+		return "", os.NewError("Unsuported PWD response format")
+	}
+
+	return msg[start+1:end], nil
+}
+
 // Retrieves a remote file
 func (c *ServerConn) Retr(path string) (io.ReadCloser, os.Error) {
 	conn, err := c.cmdDataConn("RETR %s", path)
