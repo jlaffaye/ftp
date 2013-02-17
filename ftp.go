@@ -2,13 +2,13 @@ package ftp
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
-	"fmt"
 	"strconv"
 	"strings"
-	"errors"
 )
 
 type EntryType int
@@ -152,6 +152,14 @@ func parseListLine(line string) (*Entry, error) {
 		e.Type = EntryTypeLink
 	default:
 		return nil, errors.New("Unknown entry type")
+	}
+
+	if e.Type == EntryTypeFile {
+		size, err := strconv.ParseUint(fields[4], 10, 0)
+		if err != nil {
+			return nil, err
+		}
+		e.Size = size
 	}
 
 	e.Name = strings.Join(fields[8:], " ")
