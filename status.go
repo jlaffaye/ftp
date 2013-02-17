@@ -1,12 +1,13 @@
 package ftp
 
 const (
+	// Positive Preliminary reply
 	StatusInitiating = 100
 	StatusRestartMarker = 110
 	StatusReadyMinute = 120
 	StatusAlreadyOpen = 125
 	StatusAboutToSend = 150
-
+	// Positive Completion reply
 	StatusCommandOK = 200
 	StatusCommandNotImplemented = 202
 	StatusSystem = 211
@@ -26,11 +27,11 @@ const (
 	StatusLogoutAck = 232
 	StatusRequestedFileActionOK = 250
 	StatusPathCreated = 257
-
+	// Positive Intermediate reply
 	StatusUserOK = 331
 	StatusLoginNeedAccount = 332
 	StatusRequestFilePending = 350
-
+	// Transient Negative Completion reply
 	StatusNotAvailable = 421
 	StatusCanNotOpenDataConnection = 425
 	StatusTransfertAborted = 426
@@ -39,7 +40,7 @@ const (
 	StatusFileActionIgnored = 450
 	StatusActionAborted = 451
 	Status452 = 452
-
+	// Permanent Negative Completion reply
 	StatusBadCommand = 500
 	StatusBadArguments = 501
 	StatusNotImplemented = 502
@@ -54,48 +55,49 @@ const (
 )
 
 var statusText = map[int]string{
-	StatusCommandOK:		"Command okay",
-	StatusCommandNotImplemented:	"Command not implemented, superfluous at this site",
-	StatusSystem:			"System status, or system help reply",
-	StatusDirectory:		"Directory status",
-	StatusFile:			"File status",
-	StatusHelp:			"Help message",
+	// 200
+	StatusCommandOK:		"Command okay.",
+	StatusCommandNotImplemented:	"Command not implemented, superfluous at this site.",
+	StatusSystem:			"System status, or system help reply.",
+	StatusDirectory:		"Directory status.",
+	StatusFile:			"File status.",
+	StatusHelp:			"Help message.",
 	StatusName:			"",
-	StatusReady:			"Service ready for new user",
-	StatusClosing:			"Service closing control connection",
-	StatusDataConnectionOpen:	"Data connection open; no transfer in progress",
-	StatusClosingDataConnection:	"Closing data connection. Requested file action successful",
-	StatusPassiveMode:		"Entering Passive Mode",
-	StatusLongPassiveMode:		"Entering Long Passive Mode",
-	StatusExtendedPassiveMode:	"Entering Extended Passive Mode",
-	StatusLoggedIn:			"User logged in, proceed",
-	StatusLoggedOut:		"User logged out; service terminated",
-	StatusLogoutAck:		"Logout command noted, will complete when transfer done",
-	StatusRequestedFileActionOK:	"Requested file action okay, completed",
-	StatusPathCreated:		"Path created",
-
-	StatusUserOK:			"",
-	StatusLoginNeedAccount:		"",
-	StatusRequestFilePending:	"",
-
-	StatusNotAvailable:		"",
-	StatusCanNotOpenDataConnection:	"",
-	StatusTransfertAborted:		"",
-	StatusInvalidCredentials:	"",
-	StatusHostUnavailable:		"",
-	StatusFileActionIgnored:	"",
-	StatusActionAborted:		"",
-	Status452:			"",
-
-	StatusBadCommand:		"",
-	StatusBadArguments:		"",
-	StatusNotImplemented:		"",
-	StatusBadSequence:		"",
-	StatusNotImplementedParameter:	"",
-	StatusNotLoggedIn:		"",
-	StatusStorNeedAccount:		"",
-	StatusFileUnavailable:		"",
-	StatusPageTypeUnknown:		"",
-	StatusExceededStorage:		"",
-	StatusBadFileName:		"",
+	StatusReady:			"Service ready for new user.",
+	StatusClosing:			"Service closing control connection.",
+	StatusDataConnectionOpen:	"Data connection open; no transfer in progress.",
+	StatusClosingDataConnection:	"Closing data connection. Requested file action successful.",
+	StatusPassiveMode:		"Entering Passive Mode.",
+	StatusLongPassiveMode:		"Entering Long Passive Mode.",
+	StatusExtendedPassiveMode:	"Entering Extended Passive Mode.",
+	StatusLoggedIn:			"User logged in, proceed.",
+	StatusLoggedOut:		"User logged out; service terminated.",
+	StatusLogoutAck:		"Logout command noted, will complete when transfer done.",
+	StatusRequestedFileActionOK:	"Requested file action okay, completed.",
+	StatusPathCreated:		"Path created.",
+	// 300
+	StatusUserOK:			"User name okay, need password.",
+	StatusLoginNeedAccount:		"Need account for login.",
+	StatusRequestFilePending:	"Requested file action pending further information.",
+	// 400
+	StatusNotAvailable:		"Service not available, closing control connection.",
+	StatusCanNotOpenDataConnection:	"Can't open data connection.",
+	StatusTransfertAborted:		"Connection closed; transfer aborted.",
+	StatusInvalidCredentials:	"Invalid username or password.",
+	StatusHostUnavailable:		"Requested host unavailable.",
+	StatusFileActionIgnored:	"Requested file action not taken.",
+	StatusActionAborted:		"Requested action aborted. Local error in processing.",
+	Status452:			"Insufficient storage space in system.",
+	// 500
+	StatusBadCommand:		"Command unrecognized.",
+	StatusBadArguments:		"Syntax error in parameters or arguments.",
+	StatusNotImplemented:		"Command not implemented.",
+	StatusBadSequence:		"Bad sequence of commands.",
+	StatusNotImplementedParameter:	"Command not implemented for that parameter.",
+	StatusNotLoggedIn:		"Not logged in.",
+	StatusStorNeedAccount:		"Need account for storing files.",
+	StatusFileUnavailable:		"File unavailable.",
+	StatusPageTypeUnknown:		"Page type unknown.",
+	StatusExceededStorage:		"Exceeded storage allocation.",
+	StatusBadFileName:		"File name not allowed.",
 }
