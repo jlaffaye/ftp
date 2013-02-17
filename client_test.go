@@ -8,7 +8,7 @@ import (
 
 const (
 	testData = "Just some text"
-	testDir = "mydir"
+	testDir  = "mydir"
 )
 
 func TestConn(t *testing.T) {
@@ -76,7 +76,7 @@ func TestConn(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		if dir != "/" + testDir {
+		if dir != "/"+testDir {
 			t.Error("Wrong dir: " + dir)
 		}
 	}

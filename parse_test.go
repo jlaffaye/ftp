@@ -3,13 +3,13 @@ package ftp
 import "testing"
 
 type line struct {
-	line string
-	name string
-	size uint64
+	line      string
+	name      string
+	size      uint64
 	entryType EntryType
 }
 
-var listTests = []line {
+var listTests = []line{
 	// UNIX ls -l style
 	line{"drwxr-xr-x    3 110      1002            3 Dec 02  2009 pub", "pub", 0, EntryTypeFolder},
 	line{"drwxr-xr-x    3 110      1002            3 Dec 02  2009 p u b", "p u b", 0, EntryTypeFolder},
@@ -23,7 +23,7 @@ var listTests = []line {
 }
 
 // Not supported, at least we should properly return failure
-var listTestsFail = []line {
+var listTestsFail = []line{
 	line{"d [R----F--] supervisor            512       Jan 16 18:53 login", "login", 0, EntryTypeFolder},
 	line{"- [R----F--] rhesus             214059       Oct 20 15:27 cx.exe", "cx.exe", 0, EntryTypeFile},
 }
@@ -39,7 +39,7 @@ func TestParseListLine(t *testing.T) {
 			t.Errorf("parseListLine(%v).Name = '%v', want '%v'", lt.line, entry.Name, lt.name)
 		}
 		if entry.Type != lt.entryType {
-			t.Errorf("parseListLine(%v).EntryType = %v, want %v", lt.line, entry.Type, lt.entryType,)
+			t.Errorf("parseListLine(%v).EntryType = %v, want %v", lt.line, entry.Type, lt.entryType)
 		}
 		if entry.Size != lt.size {
 			t.Errorf("parseListLine(%v).Size = %v, want %v", lt.line, entry.Size, lt.size)
