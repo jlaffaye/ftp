@@ -163,6 +163,9 @@ func parseListLine(line string) (*Entry, error) {
 	}
 
 	e.Name = strings.Join(fields[8:], " ")
+	fileSize, _ := strconv.Atoi(fields[4])
+	e.Size = uint64(fileSize)
+
 	return e, nil
 }
 
