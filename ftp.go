@@ -61,7 +61,17 @@ func (c *ServerConn) Login(user, password string) error {
 	}
 
 	_, _, err = c.cmd(StatusLoggedIn, "PASS %s", password)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Switch to binary mode
+	_, _, err = c.cmd(StatusCommandOK, "TYPE I")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Enter extended passive mode
