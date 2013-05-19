@@ -118,7 +118,7 @@ func (c *ServerConn) feat() error {
 			continue
 		}
 
-		line = strings.Trim(line, " ")
+		line = strings.TrimSpace(line)
 		featureElements := strings.SplitN(line, " ", 2)
 
 		command := featureElements[0]
