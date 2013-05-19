@@ -23,8 +23,9 @@ const (
 
 // ServerConn represents the connection to a remote FTP server.
 type ServerConn struct {
-	conn *textproto.Conn
-	host string
+	conn     *textproto.Conn
+	host     string
+	features map[string]string
 }
 
 // Entry describes a file and is returned by List().
@@ -34,7 +35,7 @@ type Entry struct {
 	Size uint64
 }
 
-// 
+// response represent a data-connection
 type response struct {
 	conn net.Conn
 	c    *ServerConn
@@ -51,9 +52,19 @@ func Connect(addr string) (*ServerConn, error) {
 	}
 
 	a := strings.SplitN(addr, ":", 2)
-	c := &ServerConn{conn, a[0]}
+	c := &ServerConn{
+		conn:     conn,
+		host:     a[0],
+		features: make(map[string]string),
+	}
 
 	_, _, err = c.conn.ReadCodeLine(StatusReady)
+	if err != nil {
+		c.Quit()
+		return nil, err
+	}
+
+	err = c.feat()
 	if err != nil {
 		c.Quit()
 		return nil, err
@@ -81,6 +92,43 @@ func (c *ServerConn) Login(user, password string) error {
 	_, _, err = c.cmd(StatusCommandOK, "TYPE I")
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// feat issues a FEAT FTP command to list the additional commands supported by
+// the remote FTP server.
+// FEAT is described in RFC 2389
+func (c *ServerConn) feat() error {
+	code, message, err := c.cmd(-1, "FEAT")
+	if err != nil {
+		return err
+	}
+
+	if code != StatusSystem {
+		// The server does not support the FEAT command. This is not an
+		// error: we consider that they are no additional features.
+		return nil
+	}
+
+	lines := strings.Split(message, "\n")
+	for _, line := range lines {
+		if !strings.HasPrefix(line, " ") {
+			continue
+		}
+
+		line = strings.Trim(line, " ")
+		featureElements := strings.SplitN(line, " ", 2)
+
+		command := featureElements[0]
+
+		var commandDesc string
+		if len(featureElements) == 2 {
+			commandDesc = featureElements[1]
+		}
+
+		c.features[command] = commandDesc
 	}
 
 	return nil
