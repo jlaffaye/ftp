@@ -91,6 +91,11 @@ func TestConn(t *testing.T) {
 		t.Error(err)
 	}
 
+	err = c.Logout()
+	if err != nil {
+		t.Error(err)
+	}
+
 	c.Quit()
 
 	err = c.NoOp()

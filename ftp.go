@@ -327,6 +327,12 @@ func (c *ServerConn) NoOp() error {
 	return err
 }
 
+// Logout issues a REIN FTP command to logout the current user.
+func (c *ServerConn) Logout() error {
+	_, _, err := c.cmd(StatusLoggedIn, "REIN")
+	return err
+}
+
 // Quit issues a QUIT FTP command to properly close the connection from the
 // remote FTP server.
 func (c *ServerConn) Quit() error {
