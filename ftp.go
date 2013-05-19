@@ -108,7 +108,7 @@ func (c *ServerConn) feat() error {
 
 	if code != StatusSystem {
 		// The server does not support the FEAT command. This is not an
-		// error: we consider that they are no additional features.
+		// error: we consider that there is no additional feature.
 		return nil
 	}
 
