@@ -88,11 +88,11 @@ func (c *ServerConn) Login(user, password string) error {
 
 // epsv issues an "EPSV" command to get a port number for a data connection.
 func (c *ServerConn) epsv() (port int, err error) {
-	c.conn.Cmd("EPSV")
-	_, line, err := c.conn.ReadCodeLine(StatusExtendedPassiveMode)
+	_, line, err := c.cmd(StatusExtendedPassiveMode, "EPSV")
 	if err != nil {
 		return
 	}
+
 	start := strings.Index(line, "|||")
 	end := strings.LastIndex(line, "|")
 	if start == -1 || end == -1 {
@@ -132,7 +132,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 		return 0, "", err
 	}
 
-	code, line, err := c.conn.ReadCodeLine(expected)
+	code, line, err := c.conn.ReadResponse(expected)
 	return code, line, err
 }
 
