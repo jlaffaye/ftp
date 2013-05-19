@@ -1,3 +1,4 @@
+// Package ftp implements a FTP client as described in RFC 959.
 package ftp
 
 import (
@@ -11,6 +12,7 @@ import (
 	"strings"
 )
 
+// EntryType describes the different types of an Entry.
 type EntryType int
 
 const (
@@ -19,23 +21,29 @@ const (
 	EntryTypeLink
 )
 
+// ServerConn represents the connection to a remote FTP server.
 type ServerConn struct {
 	conn *textproto.Conn
 	host string
 }
 
+// Entry describes a file and is returned by List().
 type Entry struct {
 	Name string
 	Type EntryType
 	Size uint64
 }
 
+// 
 type response struct {
 	conn net.Conn
 	c    *ServerConn
 }
 
-// Connect to a ftp server and returns a ServerConn handler.
+// Connect initializes the connection to the specified ftp server address.
+//
+// It is generally followed by a call to Login() as most FTP commands require
+// an authenticated user.
 func Connect(addr string) (*ServerConn, error) {
 	conn, err := textproto.Dial("tcp", addr)
 	if err != nil {
@@ -54,6 +62,10 @@ func Connect(addr string) (*ServerConn, error) {
 	return c, nil
 }
 
+// Login authenticates the client with specified user and password.
+//
+// "anonymous"/"anonymous" is a common user/password scheme for FTP servers
+// that allows anonymous read-only accounts.
 func (c *ServerConn) Login(user, password string) error {
 	_, _, err := c.cmd(StatusUserOK, "USER %s", user)
 	if err != nil {
@@ -74,7 +86,7 @@ func (c *ServerConn) Login(user, password string) error {
 	return nil
 }
 
-// Enter extended passive mode
+// epsv issues an "EPSV" command to get a port number for a data connection.
 func (c *ServerConn) epsv() (port int, err error) {
 	c.conn.Cmd("EPSV")
 	_, line, err := c.conn.ReadCodeLine(StatusExtendedPassiveMode)
@@ -91,7 +103,10 @@ func (c *ServerConn) epsv() (port int, err error) {
 	return
 }
 
-// Open a new data connection using extended passive mode
+// openDataConn creates a new FTP data connection.
+//
+// Currently, only EPSV is implemented but a fallback to PASV, and to a lesser
+// extent, PORT should be added.
 func (c *ServerConn) openDataConn() (net.Conn, error) {
 	port, err := c.epsv()
 	if err != nil {
@@ -109,7 +124,8 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	return conn, nil
 }
 
-// Helper function to execute a command and check for the expected code
+// cmd is a helper function to execute a command and check for the expected FTP
+// return code
 func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int, string, error) {
 	_, err := c.conn.Cmd(format, args...)
 	if err != nil {
@@ -120,7 +136,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 	return code, line, err
 }
 
-// Helper function to execute commands which require a data connection
+// cmdDataConn executes a command which require a FTP data connection.
 func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, error) {
 	conn, err := c.openDataConn()
 	if err != nil {
@@ -146,6 +162,8 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 	return conn, nil
 }
 
+// parseListLine parses the various non-standard format returned by the LIST
+// FTP command.
 func parseListLine(line string) (*Entry, error) {
 	fields := strings.Fields(line)
 	if len(fields) < 9 {
@@ -176,6 +194,7 @@ func parseListLine(line string) (*Entry, error) {
 	return e, nil
 }
 
+// List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	conn, err := c.cmdDataConn("LIST %s", path)
 	if err != nil {
@@ -201,20 +220,23 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	return
 }
 
-// Changes the current directory to the specified path.
+// ChangeDir issues a CWD FTP command, which changes the current directory to
+// the specified path.
 func (c *ServerConn) ChangeDir(path string) error {
 	_, _, err := c.cmd(StatusRequestedFileActionOK, "CWD %s", path)
 	return err
 }
 
-// Changes the current directory to the parent directory.
-// ChangeDir("..")
+// ChangeDirToParent issues a CDUP FTP command, which changes the current
+// directory to the parent directory.  This is similar to a call to ChangeDir
+// with a path set to "..".
 func (c *ServerConn) ChangeDirToParent() error {
 	_, _, err := c.cmd(StatusRequestedFileActionOK, "CDUP")
 	return err
 }
 
-// Returns the path of the current directory.
+// CurrentDir issues a PWD FTP command, which Returns the path of the current
+// directory.
 func (c *ServerConn) CurrentDir() (string, error) {
 	_, msg, err := c.cmd(StatusPathCreated, "PWD")
 	if err != nil {
@@ -231,8 +253,10 @@ func (c *ServerConn) CurrentDir() (string, error) {
 	return msg[start+1 : end], nil
 }
 
-// Retrieves a file from the remote FTP server.
-// The ReadCloser must be closed at the end of the operation.
+// Retr issues a RETR FTP command to fetch the specified file from the remote
+// FTP server.
+//
+// The returned ReadCloser must be closed to cleanup the FTP data connection.
 func (c *ServerConn) Retr(path string) (io.ReadCloser, error) {
 	conn, err := c.cmdDataConn("RETR %s", path)
 	if err != nil {
@@ -243,8 +267,10 @@ func (c *ServerConn) Retr(path string) (io.ReadCloser, error) {
 	return r, nil
 }
 
-// Uploads a file to the remote FTP server.
-// This function gets the data from the io.Reader. Hint: io.Pipe()
+// Stor issues a STOR FTP command to store a file to the remote FTP server.
+// Stor creates the specified file with the content of the io.Reader.
+//
+// Hint: io.Pipe() can be used if an io.Writer is required.
 func (c *ServerConn) Stor(path string, r io.Reader) error {
 	conn, err := c.cmdDataConn("STOR %s", path)
 	if err != nil {
@@ -261,7 +287,7 @@ func (c *ServerConn) Stor(path string, r io.Reader) error {
 	return err
 }
 
-// Renames a file on the remote FTP server.
+// Rename renames a file on the remote FTP server.
 func (c *ServerConn) Rename(from, to string) error {
 	_, _, err := c.cmd(StatusRequestFilePending, "RNFR %s", from)
 	if err != nil {
@@ -272,38 +298,43 @@ func (c *ServerConn) Rename(from, to string) error {
 	return err
 }
 
-// Deletes a file on the remote FTP server.
+// Delete issues a DELE FTP command to delete the specified file from the
+// remote FTP server.
 func (c *ServerConn) Delete(path string) error {
 	_, _, err := c.cmd(StatusRequestedFileActionOK, "DELE %s", path)
 	return err
 }
 
-// Creates a new directory on the remote FTP server.
+// MakeDir issues a MKD FTP command to create the specified directory on the
+// remote FTP server.
 func (c *ServerConn) MakeDir(path string) error {
 	_, _, err := c.cmd(StatusPathCreated, "MKD %s", path)
 	return err
 }
 
-// Removes a directory from the remote FTP server.
+// RemoveDir issues a RMD FTP command to remove the specified directory from
+// the remote FTP server.
 func (c *ServerConn) RemoveDir(path string) error {
 	_, _, err := c.cmd(StatusRequestedFileActionOK, "RMD %s", path)
 	return err
 }
 
-// Sends a NOOP command. Usualy used to prevent timeouts.
+// NoOp issues a NOOP FTP command.
+// NOOP has no effects and is usually used to prevent the remote FTP server to
+// close the otherwise idle connection.
 func (c *ServerConn) NoOp() error {
 	_, _, err := c.cmd(StatusCommandOK, "NOOP")
 	return err
 }
 
-// Properly close the connection from the remote FTP server.
-// It notifies the remote server that we are about to close the connection,
-// then it really closes it.
+// Quit issues a QUIT FTP command to properly close the connection from the
+// remote FTP server.
 func (c *ServerConn) Quit() error {
 	c.conn.Cmd("QUIT")
 	return c.conn.Close()
 }
 
+// Read implements the io.Reader interface on a FTP data connection.
 func (r *response) Read(buf []byte) (int, error) {
 	n, err := r.conn.Read(buf)
 	if err == io.EOF {
@@ -315,6 +346,7 @@ func (r *response) Read(buf []byte) (int, error) {
 	return n, err
 }
 
+// Close implements the io.Closer interface on a FTP data connection.
 func (r *response) Close() error {
 	return r.conn.Close()
 }
