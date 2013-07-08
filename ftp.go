@@ -10,6 +10,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // EntryType describes the different types of an Entry.
@@ -33,6 +34,7 @@ type Entry struct {
 	Name string
 	Type EntryType
 	Size uint64
+	Time time.Time
 }
 
 // response represent a data-connection
@@ -237,6 +239,18 @@ func parseListLine(line string) (*Entry, error) {
 		}
 		e.Size = size
 	}
+	var timeStr string
+	if strings.Contains(fields[7], ":") { // this year
+		thisYear, _, _ := time.Now().Date()
+		timeStr = fields[6] + " " + fields[5] + " " + strconv.Itoa(thisYear)[2:4] + " " + fields[7] + " GMT"
+	} else { // not this year
+		timeStr = fields[6] + " " + fields[5] + " " + fields[7][2:4] + " " + "00:00" + " GMT"
+	}
+	t, err := time.Parse("_2 Jan 06 15:04 MST", timeStr)
+	if err != nil {
+		return nil, err
+	}
+	e.Time = t
 
 	e.Name = strings.Join(fields[8:], " ")
 	return e, nil
