@@ -58,7 +58,7 @@ func Connect(addr string) (*ServerConn, error) {
 		features: make(map[string]string),
 	}
 
-	_, _, err = c.conn.ReadCodeLine(StatusReady)
+	_, _, err = c.conn.ReadResponse(StatusReady)
 	if err != nil {
 		c.Quit()
 		return nil, err
