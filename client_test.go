@@ -103,3 +103,20 @@ func TestConn(t *testing.T) {
 		t.Error("Expected error")
 	}
 }
+
+func TestConn2(t *testing.T) {
+	c, err := Connect("ftp.mozilla.org:21")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Login("anonymous", "anonymous")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = c.List(".")
+	if err != nil {
+		t.Error(err)
+	}
+}
