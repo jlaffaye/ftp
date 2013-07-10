@@ -405,16 +405,16 @@ func (c *ServerConn) Quit() error {
 // Read implements the io.Reader interface on a FTP data connection.
 func (r *response) Read(buf []byte) (int, error) {
 	n, err := r.conn.Read(buf)
-	if err == io.EOF {
-		_, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
-		if err2 != nil {
-			err = err2
-		}
-	}
 	return n, err
 }
 
 // Close implements the io.Closer interface on a FTP data connection.
 func (r *response) Close() error {
-	return r.conn.Close()
+	err := r.conn.Close()
+	_, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
+	if err2 != nil {
+		err = err2
+	}
+	return err
 }
+
