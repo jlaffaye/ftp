@@ -1,10 +1,9 @@
 package ftp
 
 import (
-	"time"
 	"testing"
+	"time"
 )
-
 
 var thisYear, _, _ = time.Now().Date()
 
