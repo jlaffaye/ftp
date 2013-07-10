@@ -111,6 +111,7 @@ func TestConn(t *testing.T) {
 	}
 }
 
+// ftp.mozilla.org uses multiline 220 response
 func TestConn2(t *testing.T) {
 	c, err := Connect("ftp.mozilla.org:21")
 	if err != nil {
@@ -126,4 +127,6 @@ func TestConn2(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	c.Quit()
 }
