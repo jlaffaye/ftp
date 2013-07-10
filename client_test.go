@@ -57,6 +57,13 @@ func TestConn(t *testing.T) {
 		r.Close()
 	}
 
+	r, err = c.Retr("tset")
+	if err != nil {
+		t.Error(err)
+	} else {
+		r.Close()
+	}
+
 	err = c.Delete("tset")
 	if err != nil {
 		t.Error(err)
