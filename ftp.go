@@ -153,39 +153,39 @@ func (c *ServerConn) epsv() (port int, err error) {
 	return
 }
 
-// pasv issues an "PASV" command to get a port number for a data connection.
+// pasv issues a "PASV" command to get a port number for a data connection.
 func (c *ServerConn) pasv() (port int, err error) {
-        _, line, err := c.cmd(StatusPassiveMode, "PASV")
-        if err != nil {
-                return
-        }
+	_, line, err := c.cmd(StatusPassiveMode, "PASV")
+	if err != nil {
+		return
+	}
 
-        // PASV response format : 227 Entering Passive Mode (h1,h2,h3,h4,p1,p2).
-        start := strings.Index(line, "(")
-        end := strings.LastIndex(line, ")")
-        if start == -1 || end == -1 {
-                err = errors.New("Invalid EPSV response format")
-                return
-        }
+	// PASV response format : 227 Entering Passive Mode (h1,h2,h3,h4,p1,p2).
+	start := strings.Index(line, "(")
+	end := strings.LastIndex(line, ")")
+	if start == -1 || end == -1 {
+		err = errors.New("Invalid EPSV response format")
+		return
+	}
 
-        // We have to split the response string
-        pasvData := strings.Split(line[start+1 : end], ",")
-        // Let's compute the port number
-        portPart1, err1  := strconv.Atoi(pasvData[4])
-        if err1 != nil {
-                err = err1
-                return
-        }
+	// We have to split the response string
+	pasvData := strings.Split(line[start+1:end], ",")
+	// Let's compute the port number
+	portPart1, err1 := strconv.Atoi(pasvData[4])
+	if err1 != nil {
+		err = err1
+		return
+	}
 
-        portPart2, err2  := strconv.Atoi(pasvData[5])
-        if err2 != nil {
-                err = err2
-                return
-        }
+	portPart2, err2 := strconv.Atoi(pasvData[5])
+	if err2 != nil {
+		err = err2
+		return
+	}
 
-        // Recompose port
-        port = portPart1 * 256 + portPart2
-        return
+	// Recompose port
+	port = portPart1*256 + portPart2
+	return
 }
 
 // openDataConn creates a new FTP data connection.
@@ -193,25 +193,24 @@ func (c *ServerConn) pasv() (port int, err error) {
 // Currently, only EPSV is implemented but a fallback to PASV, and to a lesser
 // extent, PORT should be added.
 func (c *ServerConn) openDataConn() (net.Conn, error) {
-        var port int
+	var port int
 	var err error
 
-        //  If features contains nat6 or EPSV => EPSV
-        //  else -> PASV
-	_,nat6Supported := c.features["nat6"];
-	_,epsvSupported := c.features["EPSV"];
-        if nat6Supported || epsvSupported {
-	  port, err = c.epsv()
-	  if err != nil {
-		return nil, err
-	  }
+	//  If features contains nat6 or EPSV => EPSV
+	//  else -> PASV
+	_, nat6Supported := c.features["nat6"]
+	_, epsvSupported := c.features["EPSV"]
+	if nat6Supported || epsvSupported {
+		port, err = c.epsv()
+		if err != nil {
+			return nil, err
+		}
 	} else {
-          port, err = c.pasv()
-          if err != nil {
-                return nil, err
-          }
+		port, err = c.pasv()
+		if err != nil {
+			return nil, err
+		}
 	}
-
 
 	// Build the new net address string
 	addr := fmt.Sprintf("%s:%d", c.host, port)
@@ -467,4 +466,3 @@ func (r *response) Close() error {
 	}
 	return err
 }
-
