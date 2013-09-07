@@ -189,9 +189,6 @@ func (c *ServerConn) pasv() (port int, err error) {
 }
 
 // openDataConn creates a new FTP data connection.
-//
-// Currently, only EPSV is implemented but a fallback to PASV, and to a lesser
-// extent, PORT should be added.
 func (c *ServerConn) openDataConn() (net.Conn, error) {
 	var port int
 	var err error
