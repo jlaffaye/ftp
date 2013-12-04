@@ -53,10 +53,10 @@ func Connect(addr string) (*ServerConn, error) {
 		return nil, err
 	}
 
-	a := strings.SplitN(addr, ":", 2)
+	a := addr[:strings.LastIndex(addr, ":")]
 	c := &ServerConn{
 		conn:     conn,
-		host:     a[0],
+		host:     a,
 		features: make(map[string]string),
 	}
 
@@ -197,6 +197,10 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	//  else -> PASV
 	_, nat6Supported := c.features["nat6"]
 	_, epsvSupported := c.features["EPSV"]
+	// If host is IPv6 => EPSV
+	if c.host[0] == '[' {
+		epsvSupported = true
+	}
 	if nat6Supported || epsvSupported {
 		port, err = c.epsv()
 		if err != nil {

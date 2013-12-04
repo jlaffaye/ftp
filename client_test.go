@@ -130,3 +130,23 @@ func TestConn2(t *testing.T) {
 
 	c.Quit()
 }
+
+// antioche.antioche.eu.org with IPv6
+func TestConnIPv6(t *testing.T) {
+	c, err := Connect("[2001:660:3302:282a:204:75ff:fe9f:9e11]:21")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Login("anonymous", "anonymous")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = c.List(".")
+	if err != nil {
+		t.Error(err)
+	}
+
+	c.Quit()
+}
