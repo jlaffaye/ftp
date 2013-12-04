@@ -385,6 +385,13 @@ func (c *ServerConn) CurrentDir() (string, error) {
 	return msg[start+1 : end], nil
 }
 
+// Rest issues a REST FTP command to specify the number of bytes to skip for
+// the next transfer.
+func (c *ServerConn) Rest(offset uint64) error {
+	_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
+	return err
+}
+
 // Retr issues a RETR FTP command to fetch the specified file from the remote
 // FTP server.
 //
