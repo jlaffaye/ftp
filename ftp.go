@@ -4,7 +4,6 @@ package ftp
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/textproto"
@@ -53,10 +52,14 @@ func Connect(addr string) (*ServerConn, error) {
 		return nil, err
 	}
 
-	a := addr[:strings.LastIndex(addr, ":")]
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
 	c := &ServerConn{
 		conn:     conn,
-		host:     a,
+		host:     host,
 		features: make(map[string]string),
 	}
 
@@ -198,7 +201,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	_, nat6Supported := c.features["nat6"]
 	_, epsvSupported := c.features["EPSV"]
 	// If host is IPv6 => EPSV
-	if c.host[0] == '[' {
+	if strings.ContainsAny(c.host, ":%") {
 		epsvSupported = true
 	}
 	if nat6Supported || epsvSupported {
@@ -214,7 +217,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	}
 
 	// Build the new net address string
-	addr := fmt.Sprintf("%s:%d", c.host, port)
+	addr := net.JoinHostPort(c.host, strconv.Itoa(port))
 
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
