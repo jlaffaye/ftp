@@ -302,6 +302,26 @@ func parseListLine(line string) (*Entry, error) {
 	return e, nil
 }
 
+// NameList issues an NLST FTP command.
+func (c *ServerConn) NameList(path string) (entries []string, err error) {
+	conn, err := c.cmdDataConn("NLST %s", path)
+	if err != nil {
+		return
+	}
+
+	r := &response{conn, c}
+	defer r.Close()
+
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		entries = append(entries, scanner.Text())
+	}
+	if err = scanner.Err(); err != nil {
+		return entries, err
+	}
+	return
+}
+
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	conn, err := c.cmdDataConn("LIST %s", path)
