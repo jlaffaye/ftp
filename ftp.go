@@ -200,17 +200,12 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	//  else -> PASV
 	_, nat6Supported := c.features["nat6"]
 	_, epsvSupported := c.features["EPSV"]
-	// If host is IPv6 => EPSV
-	if strings.ContainsAny(c.host, ":%") {
-		epsvSupported = true
+
+	if !nat6Supported && !epsvSupported {
+		port, _ = c.pasv()
 	}
-	if nat6Supported || epsvSupported {
+	if port == 0 {
 		port, err = c.epsv()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		port, err = c.pasv()
 		if err != nil {
 			return nil, err
 		}
