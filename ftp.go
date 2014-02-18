@@ -80,14 +80,20 @@ func Connect(addr string) (*ServerConn, error) {
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers
 // that allows anonymous read-only accounts.
 func (c *ServerConn) Login(user, password string) error {
-	_, _, err := c.cmd(StatusUserOK, "USER %s", user)
+	code, message, err := c.cmd(-1, "USER %s", user)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = c.cmd(StatusLoggedIn, "PASS %s", password)
-	if err != nil {
-		return err
+	switch code {
+	case StatusLoggedIn:
+	case StatusUserOK:
+		_, _, err = c.cmd(StatusLoggedIn, "PASS %s", password)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.New(message)
 	}
 
 	// Switch to binary mode
@@ -477,7 +483,7 @@ func (r *response) Read(buf []byte) (int, error) {
 // Close implements the io.Closer interface on a FTP data connection.
 func (r *response) Close() error {
 	err := r.conn.Close()
-	_, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
+	_, _, err2 := r.c.conn.ReadResponse(StatusClosingDataConnection)
 	if err2 != nil {
 		err = err2
 	}
