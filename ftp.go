@@ -417,7 +417,7 @@ func (c *ServerConn) Stor(path string, r io.Reader) error {
 		return err
 	}
 
-	_, _, err = c.conn.ReadCodeLine(StatusClosingDataConnection)
+	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
 	return err
 }
 
