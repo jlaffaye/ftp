@@ -251,7 +251,7 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 		return nil, err
 	}
 
-	code, msg, err := c.conn.ReadCodeLine(-1)
+	code, msg, err := c.conn.ReadResponse(-1)
 	if err != nil {
 		conn.Close()
 		return nil, err
