@@ -1,5 +1,5 @@
 // Package ftp implements a FTP client as described in RFC 959.
-package ftp
+package ftp // import "github.com/daddye/ftp"
 
 import (
 	"bufio"
@@ -206,7 +206,10 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	if nat6Supported || epsvSupported {
 		port, err = c.epsv()
 		if err != nil {
-			return nil, err
+			port, err = c.pasv()
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		port, err = c.pasv()
