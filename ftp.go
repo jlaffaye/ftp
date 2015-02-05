@@ -32,10 +32,11 @@ type ServerConn struct {
 // Entry describes a file and is returned by List().
 type Entry struct {
 	Name string
-	PointTo string
 	Type EntryType
 	Size uint64
 	Time time.Time
+	PointTo string
+	PointToDir bool
 }
 
 // response represent a data-connection
@@ -496,4 +497,76 @@ func (r *response) Close() error {
 		err = err2
 	}
 	return err
+}
+
+// Make a test to check if a path (usually a link) is a directory.
+func (c *ServerConn) IsDir(path string) (bool, error) {
+	curdir, err := c.CurrentDir()
+	if err != nil {
+		return false, err
+	}
+
+	err = c.ChangeDir(path)
+	if err != nil {
+		return false, nil
+	}
+
+	err = c.ChangeDir(curdir)
+	if err != nil {
+		return true, err
+	}
+
+	return true, nil
+}
+
+// Function for walking directory.
+type WalkFunc func(path string, entry *Entry) error
+
+// Walking a directory, and call walkfunc for each file or subdirectory.
+func (c *ServerConn) Walk(path string, followlink bool, walkfunc WalkFunc) error {
+	entries, err := c.List(path)
+	if err != nil {
+		return err
+	}
+
+	ok, err := c.IsDir(path)
+	if err != nil {
+		return err
+	}
+	if !ok && len(entries) > 0 {
+		return walkfunc(path, entries[0])
+	}
+
+	for _, e := range entries {
+		p := strings.Join([]string{path, e.Name}, "/")
+
+		if e.Type == EntryTypeLink {
+			ok, err := c.IsDir(p)
+			if err != nil {
+				return err
+			}
+			if ok {
+				e.PointToDir = true
+
+				if followlink {
+					err = c.Walk(p, followlink, walkfunc)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		} else if e.Type == EntryTypeFolder {
+			err = c.Walk(p, followlink, walkfunc)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = walkfunc(p, e)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
