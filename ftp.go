@@ -32,6 +32,7 @@ type ServerConn struct {
 // Entry describes a file and is returned by List().
 type Entry struct {
 	Name string
+	PointTo string
 	Type EntryType
 	Size uint64
 	Time time.Time
@@ -305,6 +306,13 @@ func parseListLine(line string) (*Entry, error) {
 	e.Time = t
 
 	e.Name = strings.Join(fields[8:], " ")
+	if e.Type == EntryTypeLink {
+		name := strings.SplitN(e.Name, " -> ", 2)
+		e.Name = name[0]
+		if len(name) > 1 {
+			e.PointTo = name[1]
+		}
+	}
 	return e, nil
 }
 
