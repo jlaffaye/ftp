@@ -1,14 +1,13 @@
 package ftp
 
+// FTP status codes, defined in RFC 959
 const (
-	// Positive Preliminary reply
 	StatusInitiating    = 100
 	StatusRestartMarker = 110
 	StatusReadyMinute   = 120
 	StatusAlreadyOpen   = 125
 	StatusAboutToSend   = 150
 
-	// Positive Completion reply
 	StatusCommandOK             = 200
 	StatusCommandNotImplemented = 202
 	StatusSystem                = 211
@@ -29,12 +28,10 @@ const (
 	StatusRequestedFileActionOK = 250
 	StatusPathCreated           = 257
 
-	// Positive Intermediate reply
 	StatusUserOK             = 331
 	StatusLoginNeedAccount   = 332
 	StatusRequestFilePending = 350
 
-	// Transient Negative Completion reply
 	StatusNotAvailable             = 421
 	StatusCanNotOpenDataConnection = 425
 	StatusTransfertAborted         = 426
@@ -44,7 +41,6 @@ const (
 	StatusActionAborted            = 451
 	Status452                      = 452
 
-	// Permanent Negative Completion reply
 	StatusBadCommand              = 500
 	StatusBadArguments            = 501
 	StatusNotImplemented          = 502

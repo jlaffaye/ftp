@@ -16,6 +16,7 @@ import (
 // EntryType describes the different types of an Entry.
 type EntryType int
 
+// The differents types of an Entry
 const (
 	EntryTypeFile EntryType = iota
 	EntryTypeFolder
