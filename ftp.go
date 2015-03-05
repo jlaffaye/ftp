@@ -258,7 +258,7 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend {
 		conn.Close()
-		return nil, &textproto.Error{code, msg}
+		return nil, &textproto.Error{Code: code, Msg: msg}
 	}
 
 	return conn, nil
