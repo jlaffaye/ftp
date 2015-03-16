@@ -28,6 +28,7 @@ type ServerConn struct {
 	conn     *textproto.Conn
 	host     string
 	features map[string]string
+	timeout  time.Duration
 }
 
 // Entry describes a file and is returned by List().
@@ -59,6 +60,42 @@ func Connect(addr string) (*ServerConn, error) {
 		conn:     conn,
 		host:     a[0],
 		features: make(map[string]string),
+	}
+
+	_, _, err = c.conn.ReadResponse(StatusReady)
+	if err != nil {
+		c.Quit()
+		return nil, err
+	}
+
+	err = c.feat()
+	if err != nil {
+		c.Quit()
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// Connect initializes the connection to the specified ftp server address with
+// the specified timeout setting.
+//
+// It is generally followed by a call to Login() as most FTP commands require
+// an authenticated user.
+func ConnectTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
+	tconn, err := net.DialTimeout("tcp", addr, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	conn := textproto.NewConn(tconn)
+
+	a := strings.SplitN(addr, ":", 2)
+	c := &ServerConn{
+		conn:     conn,
+		host:     a[0],
+		features: make(map[string]string),
+		timeout:  timeout,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)
@@ -199,6 +236,7 @@ func (c *ServerConn) pasv() (port int, err error) {
 func (c *ServerConn) openDataConn() (net.Conn, error) {
 	var port int
 	var err error
+	var conn net.Conn
 
 	//  If features contains nat6 or EPSV => EPSV
 	//  else -> PASV
@@ -219,7 +257,11 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	// Build the new net address string
 	addr := fmt.Sprintf("%s:%d", c.host, port)
 
-	conn, err := net.Dial("tcp", addr)
+	if c.timeout == 0 {
+		conn, err = net.Dial("tcp", addr)
+	} else {
+		conn, err = net.DialTimeout("tcp", addr, c.timeout)
+	}
 	if err != nil {
 		return nil, err
 	}
