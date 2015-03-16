@@ -27,6 +27,7 @@ const (
 type ServerConn struct {
 	conn     *textproto.Conn
 	host     string
+	timeout  time.Duration
 	features map[string]string
 }
 
@@ -44,20 +45,33 @@ type response struct {
 	c    *ServerConn
 }
 
-// Connect initializes the connection to the specified ftp server address.
+// Connect is an alias to Dial, for backward compatibility
+func Connect(addr string) (*ServerConn, error) {
+	return Dial(addr)
+}
+
+// Dial is like DialTimeout with no timeout
+func Dial(addr string) (*ServerConn, error) {
+	return DialTimeout(addr, 0)
+}
+
+// DialTimeout initializes the connection to the specified ftp server address.
 //
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
-func Connect(addr string) (*ServerConn, error) {
-	conn, err := textproto.Dial("tcp", addr)
+func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
+	tconn, err := net.DialTimeout("tcp", addr, timeout)
 	if err != nil {
 		return nil, err
 	}
+
+	conn := textproto.NewConn(tconn)
 
 	a := strings.SplitN(addr, ":", 2)
 	c := &ServerConn{
 		conn:     conn,
 		host:     a[0],
+		timeout:  timeout,
 		features: make(map[string]string),
 	}
 
@@ -219,7 +233,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	// Build the new net address string
 	addr := fmt.Sprintf("%s:%d", c.host, port)
 
-	conn, err := net.Dial("tcp", addr)
+	conn, err := net.DialTimeout("tcp", addr, c.timeout)
 	if err != nil {
 		return nil, err
 	}

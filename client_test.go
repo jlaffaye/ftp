@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+	"time"
 )
 
 const (
@@ -12,7 +13,7 @@ const (
 )
 
 func TestConn(t *testing.T) {
-	c, err := Connect("localhost:21")
+	c, err := DialTimeout("localhost:21", 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,8 +113,8 @@ func TestConn(t *testing.T) {
 }
 
 // ftp.mozilla.org uses multiline 220 response
-func TestConn2(t *testing.T) {
-	c, err := Connect("ftp.mozilla.org:21")
+func TestMultiline(t *testing.T) {
+	c, err := DialTimeout("ftp.mozilla.org:21", 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
