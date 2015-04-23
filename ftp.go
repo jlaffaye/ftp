@@ -185,7 +185,7 @@ func (c *ServerConn) pasv() (port int, err error) {
 	start := strings.Index(line, "(")
 	end := strings.LastIndex(line, ")")
 	if start == -1 || end == -1 {
-		err = errors.New("Invalid EPSV response format")
+		err = errors.New("Invalid PASV response format")
 		return
 	}
 
