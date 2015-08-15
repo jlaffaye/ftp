@@ -26,6 +26,12 @@ var listTests = []line{
 	{"d---------   1 owner    group               0 May  9 19:45 Softlib", "Softlib", 0, EntryTypeFolder, time.Date(thisYear, time.May, 9, 19, 45, 0, 0, time.UTC)},
 	// WFTPD for MSDOS
 	{"-rwxrwxrwx   1 noone    nogroup      322 Aug 19  1996 message.ftp", "message.ftp", 322, EntryTypeFile, time.Date(1996, time.August, 19, 0, 0, 0, 0, time.UTC)},
+	// Some other
+	{"modify=20150813224845;perm=fle;type=cdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; .", ".", 0, EntryTypeFolder, time.Date(2015, time.August, 13, 22, 48, 45, 0, time.UTC)},
+	{"modify=20150813224845;perm=fle;type=pdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; ..", "..", 0, EntryTypeFolder, time.Date(2015, time.August, 13, 22, 48, 45, 0, time.UTC)},
+	{"modify=20150806235817;perm=fle;type=dir;unique=1B20F360U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; movies", "movies", 0, EntryTypeFolder, time.Date(2015, time.August, 6, 23, 58, 17, 0, time.UTC)},
+	{"modify=20150814172949;perm=flcdmpe;type=dir;unique=85A0C168U4;UNIX.group=0;UNIX.mode=0777;UNIX.owner=0; _upload", "_upload", 0, EntryTypeFolder, time.Date(2015, time.August, 14, 17, 29, 49, 0, time.UTC)},
+	{"modify=20150813175250;perm=adfr;size=951;type=file;unique=119FBB87UE;UNIX.group=0;UNIX.mode=0644;UNIX.owner=0; welcome.msg", "welcome.msg", 951, EntryTypeFile, time.Date(2015, time.August, 13, 17, 52, 50, 0, time.UTC)},
 }
 
 // Not supported, at least we should properly return failure

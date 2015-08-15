@@ -290,45 +290,77 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 // parseListLine parses the various non-standard format returned by the LIST
 // FTP command.
 func parseListLine(line string) (*Entry, error) {
-	fields := strings.Fields(line)
-	if len(fields) < 9 {
-		return nil, errors.New("Unsupported LIST line")
-	}
+	if strings.HasPrefix(line, "modify=") {
+		e := &Entry{}
+		arr := strings.Split(line, "; ")
+		e.Name = arr[1]
 
-	e := &Entry{}
-	switch fields[0][0] {
-	case '-':
-		e.Type = EntryTypeFile
-	case 'd':
-		e.Type = EntryTypeFolder
-	case 'l':
-		e.Type = EntryTypeLink
-	default:
-		return nil, errors.New("Unknown entry type")
-	}
+		for _, field := range strings.Split(arr[0], ";") {
+			i := strings.Index(field, "=")
+			if i < 1 {
+				return nil, errors.New("Unsupported LIST line")
+			}
 
-	if e.Type == EntryTypeFile {
-		size, err := strconv.ParseUint(fields[4], 10, 0)
+			key := field[:i]
+			value := field[i+1:]
+
+			switch key {
+			case "modify":
+				e.Time, _ = time.Parse("20060102150405", value)
+			case "type":
+				switch value {
+				case "dir", "cdir", "pdir":
+					e.Type = EntryTypeFolder
+				case "file":
+					e.Type = EntryTypeFile
+				}
+			case "size":
+				e.Size, _ = strconv.ParseUint(value, 0, 64)
+			}
+		}
+		return e, nil
+
+	} else {
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			return nil, errors.New("Unsupported LIST line")
+		}
+
+		e := &Entry{}
+		switch fields[0][0] {
+		case '-':
+			e.Type = EntryTypeFile
+		case 'd':
+			e.Type = EntryTypeFolder
+		case 'l':
+			e.Type = EntryTypeLink
+		default:
+			return nil, errors.New("Unknown entry type")
+		}
+
+		if e.Type == EntryTypeFile {
+			size, err := strconv.ParseUint(fields[4], 10, 0)
+			if err != nil {
+				return nil, err
+			}
+			e.Size = size
+		}
+		var timeStr string
+		if strings.Contains(fields[7], ":") { // this year
+			thisYear, _, _ := time.Now().Date()
+			timeStr = fields[6] + " " + fields[5] + " " + strconv.Itoa(thisYear)[2:4] + " " + fields[7] + " GMT"
+		} else { // not this year
+			timeStr = fields[6] + " " + fields[5] + " " + fields[7][2:4] + " " + "00:00" + " GMT"
+		}
+		t, err := time.Parse("_2 Jan 06 15:04 MST", timeStr)
 		if err != nil {
 			return nil, err
 		}
-		e.Size = size
-	}
-	var timeStr string
-	if strings.Contains(fields[7], ":") { // this year
-		thisYear, _, _ := time.Now().Date()
-		timeStr = fields[6] + " " + fields[5] + " " + strconv.Itoa(thisYear)[2:4] + " " + fields[7] + " GMT"
-	} else { // not this year
-		timeStr = fields[6] + " " + fields[5] + " " + fields[7][2:4] + " " + "00:00" + " GMT"
-	}
-	t, err := time.Parse("_2 Jan 06 15:04 MST", timeStr)
-	if err != nil {
-		return nil, err
-	}
-	e.Time = t
+		e.Time = t
 
-	e.Name = strings.Join(fields[8:], " ")
-	return e, nil
+		e.Name = strings.Join(fields[8:], " ")
+		return e, nil
+	}
 }
 
 // NameList issues an NLST FTP command.
