@@ -290,6 +290,8 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 // parseListLine parses the various non-standard format returned by the LIST
 // FTP command.
 func parseListLine(line string) (*Entry, error) {
+	var err error
+
 	if strings.HasPrefix(line, "modify=") {
 		e := &Entry{}
 		arr := strings.Split(line, "; ")
@@ -322,7 +324,36 @@ func parseListLine(line string) (*Entry, error) {
 
 	} else {
 		fields := strings.Fields(line)
+		if len(fields) >= 7 && fields[1] == "folder" {
+			e := &Entry{
+				Type: EntryTypeFolder,
+				Name: strings.Join(fields[6:], " "),
+			}
+			if err = e.SetTime(fields[3:6]); err != nil {
+				return nil, err
+			}
+
+			return e, nil
+		}
+
+		if fields[1] == "0" {
+			e := &Entry{
+				Type: EntryTypeFile,
+				Name: strings.Join(fields[7:], " "),
+			}
+
+			if err = e.SetSize(fields[2]); err != nil {
+				return nil, err
+			}
+			if err = e.SetTime(fields[4:7]); err != nil {
+				return nil, err
+			}
+
+			return e, nil
+		}
+
 		if len(fields) < 9 {
+			//panic(fmt.Sprintf("%d %v", len(fields), fields[6]))
 			return nil, errors.New("Unsupported LIST line")
 		}
 
@@ -339,28 +370,38 @@ func parseListLine(line string) (*Entry, error) {
 		}
 
 		if e.Type == EntryTypeFile {
-			size, err := strconv.ParseUint(fields[4], 10, 0)
-			if err != nil {
+			if err = e.SetSize(fields[4]); err != nil {
 				return nil, err
 			}
-			e.Size = size
 		}
-		var timeStr string
-		if strings.Contains(fields[7], ":") { // this year
-			thisYear, _, _ := time.Now().Date()
-			timeStr = fields[6] + " " + fields[5] + " " + strconv.Itoa(thisYear)[2:4] + " " + fields[7] + " GMT"
-		} else { // not this year
-			timeStr = fields[6] + " " + fields[5] + " " + fields[7][2:4] + " " + "00:00" + " GMT"
-		}
-		t, err := time.Parse("_2 Jan 06 15:04 MST", timeStr)
-		if err != nil {
+
+		if err = e.SetTime(fields[5:8]); err != nil {
 			return nil, err
 		}
-		e.Time = t
 
 		e.Name = strings.Join(fields[8:], " ")
 		return e, nil
 	}
+}
+
+func (e *Entry) SetSize(str string) (err error) {
+	e.Size, err = strconv.ParseUint(str, 10, 0)
+	return
+}
+
+func (e *Entry) SetTime(fields []string) (err error) {
+	var timeStr string
+	if strings.Contains(fields[2], ":") { // this year
+		thisYear, _, _ := time.Now().Date()
+		timeStr = fields[1] + " " + fields[0] + " " + strconv.Itoa(thisYear)[2:4] + " " + fields[2] + " GMT"
+	} else { // not this year
+		if len(fields[2]) != 4 {
+			return errors.New("Invalid year format in time string")
+		}
+		timeStr = fields[1] + " " + fields[0] + " " + fields[2][2:4] + " " + "00:00" + " GMT"
+	}
+	e.Time, err = time.Parse("_2 Jan 06 15:04 MST", timeStr)
+	return
 }
 
 // NameList issues an NLST FTP command.
