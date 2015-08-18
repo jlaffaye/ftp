@@ -32,6 +32,11 @@ func TestConn(t *testing.T) {
 		t.Error(err)
 	}
 
+	err = c.ChangeDir("incoming")
+	if err != nil {
+		t.Error(err)
+	}
+
 	data := bytes.NewBufferString(testData)
 	err = c.Stor("test", data)
 	if err != nil {
@@ -88,7 +93,7 @@ func TestConn(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		if dir != "/"+testDir {
+		if dir != "/incoming/"+testDir {
 			t.Error("Wrong dir: " + dir)
 		}
 	}
