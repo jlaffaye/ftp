@@ -59,12 +59,15 @@ func Dial(addr string) (*ServerConn, error) {
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
-	host, _, err := net.SplitHostPort(addr)
+	tconn, err := net.DialTimeout("tcp", addr, timeout)
 	if err != nil {
 		return nil, err
 	}
 
-	tconn, err := net.DialTimeout("tcp", addr, timeout)
+	// Use the resolved IP address in case addr contains a domain name
+	// If we use the domain name, we might not resolve to the same IP.
+	remoteAddr := tconn.RemoteAddr().String()
+	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
 		return nil, err
 	}
