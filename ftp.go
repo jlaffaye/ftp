@@ -4,7 +4,6 @@ package ftp
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/textproto"
@@ -67,10 +66,14 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 
 	conn := textproto.NewConn(tconn)
 
-	a := strings.SplitN(addr, ":", 2)
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
 	c := &ServerConn{
 		conn:     conn,
-		host:     a[0],
+		host:     host,
 		timeout:  timeout,
 		features: make(map[string]string),
 	}
@@ -218,20 +221,19 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	//  else -> PASV
 	_, nat6Supported := c.features["nat6"]
 	_, epsvSupported := c.features["EPSV"]
-	if nat6Supported || epsvSupported {
+
+	if !nat6Supported && !epsvSupported {
+		port, _ = c.pasv()
+	}
+	if port == 0 {
 		port, err = c.epsv()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		port, err = c.pasv()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Build the new net address string
-	addr := fmt.Sprintf("%s:%d", c.host, port)
+	addr := net.JoinHostPort(c.host, strconv.Itoa(port))
 
 	conn, err := net.DialTimeout("tcp", addr, c.timeout)
 	if err != nil {
