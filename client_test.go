@@ -142,6 +142,10 @@ func TestMultiline(t *testing.T) {
 
 // antioche.antioche.eu.org with IPv6
 func TestConnIPv6(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	c, err := Connect("[2001:660:3302:282a:204:75ff:fe9f:9e11]:21")
 	if err != nil {
 		t.Fatal(err)
