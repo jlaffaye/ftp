@@ -21,11 +21,21 @@ var listTests = []line{
 	{"drwxr-xr-x    3 110      1002            3 Dec 02  2009 p u b", "p u b", 0, EntryTypeFolder, time.Date(2009, time.December, 2, 0, 0, 0, 0, time.UTC)},
 	{"-rwxr-xr-x    3 110      1002            1234567 Dec 02  2009 fileName", "fileName", 1234567, EntryTypeFile, time.Date(2009, time.December, 2, 0, 0, 0, 0, time.UTC)},
 	{"lrwxrwxrwx   1 root     other          7 Jan 25 00:17 bin -> usr/bin", "bin -> usr/bin", 0, EntryTypeLink, time.Date(thisYear, time.January, 25, 0, 17, 0, 0, time.UTC)},
+	// Another ls style
+	{"drwxr-xr-x               folder        0 Aug 15 05:49 !!!-Tipp des Haus!", "!!!-Tipp des Haus!", 0, EntryTypeFolder, time.Date(thisYear, time.August, 15, 5, 49, 0, 0, time.UTC)},
+	{"drwxrwxrwx               folder        0 Aug 11 20:32 P0RN", "P0RN", 0, EntryTypeFolder, time.Date(thisYear, time.August, 11, 20, 32, 0, 0, time.UTC)},
+	{"-rw-r--r--        0   195291136 195291136 Nov 16  2006 VIDEO_TS.VOB", "VIDEO_TS.VOB", 195291136, EntryTypeFile, time.Date(2006, time.November, 16, 0, 0, 0, 0, time.UTC)},
 	// Microsoft's FTP servers for Windows
 	{"----------   1 owner    group         1803128 Jul 10 10:18 ls-lR.Z", "ls-lR.Z", 1803128, EntryTypeFile, time.Date(thisYear, time.July, 10, 10, 18, 0, 0, time.UTC)},
 	{"d---------   1 owner    group               0 May  9 19:45 Softlib", "Softlib", 0, EntryTypeFolder, time.Date(thisYear, time.May, 9, 19, 45, 0, 0, time.UTC)},
 	// WFTPD for MSDOS
 	{"-rwxrwxrwx   1 noone    nogroup      322 Aug 19  1996 message.ftp", "message.ftp", 322, EntryTypeFile, time.Date(1996, time.August, 19, 0, 0, 0, 0, time.UTC)},
+	// Some other
+	{"modify=20150813224845;perm=fle;type=cdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; .", ".", 0, EntryTypeFolder, time.Date(2015, time.August, 13, 22, 48, 45, 0, time.UTC)},
+	{"modify=20150813224845;perm=fle;type=pdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; ..", "..", 0, EntryTypeFolder, time.Date(2015, time.August, 13, 22, 48, 45, 0, time.UTC)},
+	{"modify=20150806235817;perm=fle;type=dir;unique=1B20F360U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; movies", "movies", 0, EntryTypeFolder, time.Date(2015, time.August, 6, 23, 58, 17, 0, time.UTC)},
+	{"modify=20150814172949;perm=flcdmpe;type=dir;unique=85A0C168U4;UNIX.group=0;UNIX.mode=0777;UNIX.owner=0; _upload", "_upload", 0, EntryTypeFolder, time.Date(2015, time.August, 14, 17, 29, 49, 0, time.UTC)},
+	{"modify=20150813175250;perm=adfr;size=951;type=file;unique=119FBB87UE;UNIX.group=0;UNIX.mode=0644;UNIX.owner=0; welcome.msg", "welcome.msg", 951, EntryTypeFile, time.Date(2015, time.August, 13, 17, 52, 50, 0, time.UTC)},
 }
 
 // Not supported, at least we should properly return failure
