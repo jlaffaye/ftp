@@ -1,0 +1,9 @@
+language: go
+go:
+- 1.4.2
+- tip
+before_install:
+- sudo mkdir --mode 0777 -p /var/ftp/incoming
+- sudo apt-get install -qq vsftpd
+- sudo cp $TRAVIS_BUILD_DIR/.vsftpd.conf /etc/vsftpd.conf
+- sudo service vsftpd restart
