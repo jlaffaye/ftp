@@ -3,6 +3,7 @@ package ftp
 import (
 	"bytes"
 	"io/ioutil"
+	"net/textproto"
 	"testing"
 	"time"
 )
@@ -110,7 +111,13 @@ func TestConn(t *testing.T) {
 
 	err = c.Logout()
 	if err != nil {
-		t.Error(err)
+		if protoErr := err.(*textproto.Error); protoErr != nil {
+			if protoErr.Code != StatusNotImplemented {
+				t.Error(err)
+			}
+		} else {
+			t.Error(err)
+		}
 	}
 
 	c.Quit()
