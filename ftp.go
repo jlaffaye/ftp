@@ -294,7 +294,8 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 func parseListLine(line string) (*Entry, error) {
 	var err error
 
-	if strings.HasPrefix(line, "modify=") {
+	// RFC3659 style
+	if i := strings.Index(line, ";"); i > 0 && i < strings.Index(line, " ") {
 		e := &Entry{}
 		arr := strings.Split(line, "; ")
 		e.Name = arr[1]
@@ -326,7 +327,7 @@ func parseListLine(line string) (*Entry, error) {
 
 	} else {
 		fields := strings.Fields(line)
-		if len(fields) >= 7 && fields[1] == "folder" {
+		if len(fields) >= 7 && fields[1] == "folder" && fields[2] == "0" {
 			e := &Entry{
 				Type: EntryTypeFolder,
 				Name: strings.Join(fields[6:], " "),
@@ -355,7 +356,6 @@ func parseListLine(line string) (*Entry, error) {
 		}
 
 		if len(fields) < 9 {
-			//panic(fmt.Sprintf("%d %v", len(fields), fields[6]))
 			return nil, errors.New("Unsupported LIST line")
 		}
 
