@@ -151,7 +151,7 @@ func TestConnIPv6(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c, err := DialTimeout("[2001:660:3302:282a:204:75ff:fe9f:9e11]:21", 5*time.Second)
+	c, err := DialTimeout("[::1]:21", 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
