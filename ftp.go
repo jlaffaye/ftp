@@ -235,12 +235,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	// Build the new net address string
 	addr := net.JoinHostPort(c.host, strconv.Itoa(port))
 
-	conn, err := net.DialTimeout("tcp", addr, c.timeout)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+	return net.DialTimeout("tcp", addr, c.timeout)
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
@@ -251,8 +246,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 		return 0, "", err
 	}
 
-	code, line, err := c.conn.ReadResponse(expected)
-	return code, line, err
+	return c.conn.ReadResponse(expected)
 }
 
 // cmdDataConnFrom executes a command which require a FTP data connection.
@@ -320,7 +314,7 @@ func parseListLine(line string) (*Entry, error) {
 					e.Type = EntryTypeFile
 				}
 			case "size":
-				e.Size, _ = strconv.ParseUint(value, 0, 64)
+				e.setSize(value)
 			}
 		}
 		return e, nil
@@ -363,18 +357,15 @@ func parseListLine(line string) (*Entry, error) {
 		switch fields[0][0] {
 		case '-':
 			e.Type = EntryTypeFile
+			if err = e.setSize(fields[4]); err != nil {
+				return nil, err
+			}
 		case 'd':
 			e.Type = EntryTypeFolder
 		case 'l':
 			e.Type = EntryTypeLink
 		default:
 			return nil, errors.New("Unknown entry type")
-		}
-
-		if e.Type == EntryTypeFile {
-			if err = e.setSize(fields[4]); err != nil {
-				return nil, err
-			}
 		}
 
 		if err = e.setTime(fields[5:8]); err != nil {
@@ -387,7 +378,7 @@ func parseListLine(line string) (*Entry, error) {
 }
 
 func (e *Entry) setSize(str string) (err error) {
-	e.Size, err = strconv.ParseUint(str, 10, 0)
+	e.Size, err = strconv.ParseUint(str, 0, 64)
 	return
 }
 
@@ -400,7 +391,7 @@ func (e *Entry) setTime(fields []string) (err error) {
 		if len(fields[2]) != 4 {
 			return errors.New("Invalid year format in time string")
 		}
-		timeStr = fields[1] + " " + fields[0] + " " + fields[2][2:4] + " " + "00:00" + " GMT"
+		timeStr = fields[1] + " " + fields[0] + " " + fields[2][2:4] + " 00:00 GMT"
 	}
 	e.Time, err = time.Parse("_2 Jan 06 15:04 MST", timeStr)
 	return
@@ -503,8 +494,7 @@ func (c *ServerConn) RetrFrom(path string, offset uint64) (io.ReadCloser, error)
 		return nil, err
 	}
 
-	r := &response{conn, c}
-	return r, nil
+	return &response{conn, c}, nil
 }
 
 // Stor issues a STOR FTP command to store a file to the remote FTP server.
@@ -591,8 +581,7 @@ func (c *ServerConn) Quit() error {
 
 // Read implements the io.Reader interface on a FTP data connection.
 func (r *response) Read(buf []byte) (int, error) {
-	n, err := r.conn.Read(buf)
-	return n, err
+	return r.conn.Read(buf)
 }
 
 // Close implements the io.Closer interface on a FTP data connection.
