@@ -13,6 +13,10 @@ const (
 )
 
 func TestConn(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	c, err := DialTimeout("localhost:21", 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -114,6 +118,10 @@ func TestConn(t *testing.T) {
 
 // ftp.mozilla.org uses multiline 220 response
 func TestMultiline(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	c, err := DialTimeout("ftp.mozilla.org:21", 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
