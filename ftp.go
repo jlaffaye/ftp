@@ -253,11 +253,19 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 	return code, line, err
 }
 
-// cmdDataConn executes a command which require a FTP data connection.
-func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, error) {
+// cmdDataConnFrom executes a command which require a FTP data connection.
+// Issues a REST FTP command to specify the number of bytes to skip for the transfer.
+func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (net.Conn, error) {
 	conn, err := c.openDataConn()
 	if err != nil {
 		return nil, err
+	}
+
+	if offset != 0 {
+		_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	_, err = c.conn.Cmd(format, args...)
@@ -325,7 +333,7 @@ func parseListLine(line string) (*Entry, error) {
 
 // NameList issues an NLST FTP command.
 func (c *ServerConn) NameList(path string) (entries []string, err error) {
-	conn, err := c.cmdDataConn("NLST %s", path)
+	conn, err := c.cmdDataConnFrom(0, "NLST %s", path)
 	if err != nil {
 		return
 	}
@@ -345,7 +353,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
-	conn, err := c.cmdDataConn("LIST %s", path)
+	conn, err := c.cmdDataConnFrom(0, "LIST %s", path)
 	if err != nil {
 		return
 	}
@@ -407,7 +415,15 @@ func (c *ServerConn) CurrentDir() (string, error) {
 //
 // The returned ReadCloser must be closed to cleanup the FTP data connection.
 func (c *ServerConn) Retr(path string) (io.ReadCloser, error) {
-	conn, err := c.cmdDataConn("RETR %s", path)
+	return c.RetrFrom(path, 0)
+}
+
+// Retr issues a RETR FTP command to fetch the specified file from the remote
+// FTP server, the server will not send the offset first bytes of the file.
+//
+// The returned ReadCloser must be closed to cleanup the FTP data connection.
+func (c *ServerConn) RetrFrom(path string, offset uint64) (io.ReadCloser, error) {
+	conn, err := c.cmdDataConnFrom(offset, "RETR %s", path)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +437,16 @@ func (c *ServerConn) Retr(path string) (io.ReadCloser, error) {
 //
 // Hint: io.Pipe() can be used if an io.Writer is required.
 func (c *ServerConn) Stor(path string, r io.Reader) error {
-	conn, err := c.cmdDataConn("STOR %s", path)
+	return c.StorFrom(path, r, 0)
+}
+
+// Stor issues a STOR FTP command to store a file to the remote FTP server.
+// Stor creates the specified file with the content of the io.Reader, writing
+// on the server will start at the given file offset.
+//
+// Hint: io.Pipe() can be used if an io.Writer is required.
+func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
+	conn, err := c.cmdDataConnFrom(offset, "STOR %s", path)
 	if err != nil {
 		return err
 	}
