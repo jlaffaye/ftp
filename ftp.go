@@ -59,6 +59,11 @@ func Dial(addr string) (*ServerConn, error) {
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+
 	tconn, err := net.DialTimeout("tcp", addr, timeout)
 	if err != nil {
 		return nil, err
@@ -66,11 +71,6 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 
 	conn := textproto.NewConn(tconn)
 
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
 	c := &ServerConn{
 		conn:     conn,
 		host:     host,
