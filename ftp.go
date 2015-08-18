@@ -329,7 +329,7 @@ func parseListLine(line string) (*Entry, error) {
 				Type: EntryTypeFolder,
 				Name: strings.Join(fields[6:], " "),
 			}
-			if err = e.SetTime(fields[3:6]); err != nil {
+			if err = e.setTime(fields[3:6]); err != nil {
 				return nil, err
 			}
 
@@ -342,10 +342,10 @@ func parseListLine(line string) (*Entry, error) {
 				Name: strings.Join(fields[7:], " "),
 			}
 
-			if err = e.SetSize(fields[2]); err != nil {
+			if err = e.setSize(fields[2]); err != nil {
 				return nil, err
 			}
-			if err = e.SetTime(fields[4:7]); err != nil {
+			if err = e.setTime(fields[4:7]); err != nil {
 				return nil, err
 			}
 
@@ -370,12 +370,12 @@ func parseListLine(line string) (*Entry, error) {
 		}
 
 		if e.Type == EntryTypeFile {
-			if err = e.SetSize(fields[4]); err != nil {
+			if err = e.setSize(fields[4]); err != nil {
 				return nil, err
 			}
 		}
 
-		if err = e.SetTime(fields[5:8]); err != nil {
+		if err = e.setTime(fields[5:8]); err != nil {
 			return nil, err
 		}
 
@@ -384,12 +384,12 @@ func parseListLine(line string) (*Entry, error) {
 	}
 }
 
-func (e *Entry) SetSize(str string) (err error) {
+func (e *Entry) setSize(str string) (err error) {
 	e.Size, err = strconv.ParseUint(str, 10, 0)
 	return
 }
 
-func (e *Entry) SetTime(fields []string) (err error) {
+func (e *Entry) setTime(fields []string) (err error) {
 	var timeStr string
 	if strings.Contains(fields[2], ":") { // this year
 		thisYear, _, _ := time.Now().Date()
