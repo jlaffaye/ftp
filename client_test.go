@@ -109,7 +109,8 @@ func TestConn(t *testing.T) {
 	}
 
 	err = c.Logout()
-	if err != nil {
+	// REIN is not supported by vsftpd
+	if err != nil && err.Error() != "502 REIN not implemented." {
 		t.Error(err)
 	}
 
