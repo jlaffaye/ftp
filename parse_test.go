@@ -25,7 +25,7 @@ var listTests = []line{
 	// Another ls style
 	{"drwxr-xr-x               folder        0 Aug 15 05:49 !!!-Tipp des Haus!", "!!!-Tipp des Haus!", 0, EntryTypeFolder, time.Date(thisYear, time.August, 15, 5, 49, 0, 0, time.UTC)},
 	{"drwxrwxrwx               folder        0 Aug 11 20:32 P0RN", "P0RN", 0, EntryTypeFolder, time.Date(thisYear, time.August, 11, 20, 32, 0, 0, time.UTC)},
-	{"-rw-r--r--        0   195291136 195291136 Nov 16  2006 VIDEO_TS.VOB", "VIDEO_TS.VOB", 195291136, EntryTypeFile, time.Date(2006, time.November, 16, 0, 0, 0, 0, time.UTC)},
+	{"-rw-r--r--        0   18446744073709551615 18446744073709551615 Nov 16  2006 VIDEO_TS.VOB", "VIDEO_TS.VOB", 18446744073709551615, EntryTypeFile, time.Date(2006, time.November, 16, 0, 0, 0, 0, time.UTC)},
 
 	// Microsoft's FTP servers for Windows
 	{"----------   1 owner    group         1803128 Jul 10 10:18 ls-lR.Z", "ls-lR.Z", 1803128, EntryTypeFile, time.Date(thisYear, time.July, 10, 10, 18, 0, 0, time.UTC)},
