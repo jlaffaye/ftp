@@ -80,10 +80,18 @@ func testConn(t *testing.T, passive bool) {
 		r.Close()
 	}
 
-	r, err = c.Retr("tset")
+	r, err = c.RetrFrom("tset", 5)
 	if err != nil {
 		t.Error(err)
 	} else {
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Error(err)
+		}
+		expected := testData[5:]
+		if string(buf) != expected {
+			t.Errorf("read %q, expected %q", buf, expected)
+		}
 		r.Close()
 	}
 
