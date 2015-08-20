@@ -116,6 +116,14 @@ func testConn(t *testing.T, passive bool) {
 		t.Error(err)
 	}
 
+	entries, err := c.NameList("/")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(entries) != 1 || entries[0] != "/incoming" {
+		t.Errorf("Unexpected entries: %v", entries)
+	}
+
 	err = c.RemoveDir(testDir)
 	if err != nil {
 		t.Error(err)
