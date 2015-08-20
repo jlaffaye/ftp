@@ -15,6 +15,11 @@ type line struct {
 	time      time.Time
 }
 
+type unsupportedLine struct {
+	line string
+	err  string
+}
+
 var listTests = []line{
 	// UNIX ls -l style
 	{"drwxr-xr-x    3 110      1002            3 Dec 02  2009 pub", "pub", 0, EntryTypeFolder, time.Date(2009, time.December, 2, 0, 0, 0, 0, time.UTC)},
@@ -42,13 +47,16 @@ var listTests = []line{
 	{"modify=20150813175250;perm=adfr;size=951;type=file;unique=119FBB87UE;UNIX.group=0;UNIX.mode=0644;UNIX.owner=0; welcome.msg", "welcome.msg", 951, EntryTypeFile, time.Date(2015, time.August, 13, 17, 52, 50, 0, time.UTC)},
 }
 
-// Not supported, at least we should properly return failure
-var listTestsFail = []line{
-	{"d [R----F--] supervisor            512       Jan 16 18:53 login", "login", 0, EntryTypeFolder, time.Date(thisYear, time.January, 16, 18, 53, 0, 0, time.UTC)},
-	{"- [R----F--] rhesus             214059       Oct 20 15:27 cx.exe", "cx.exe", 0, EntryTypeFile, time.Date(thisYear, time.October, 20, 15, 27, 0, 0, time.UTC)},
+// Not supported, we expect a specific error message
+var listTestsFail = []unsupportedLine{
+	{"d [R----F--] supervisor            512       Jan 16 18:53 login", "Unsupported LIST line"},
+	{"- [R----F--] rhesus             214059       Oct 20 15:27 cx.exe", "Unsupported LIST line"},
+	{"drwxr-xr-x    3 110      1002            3 Dec 02  209 pub", "Invalid year format in time string"},
+	{"modify=20150806235817;invalid;UNIX.owner=0; movies", "Unsupported LIST line"},
+	{"Zrwxrwxrwx   1 root     other          7 Jan 25 00:17 bin -> usr/bin", "Unknown entry type"},
 }
 
-func TestParseListLine(t *testing.T) {
+func TestParseValidListLine(t *testing.T) {
 	for _, lt := range listTests {
 		entry, err := parseListLine(lt.line)
 		if err != nil {
@@ -68,10 +76,16 @@ func TestParseListLine(t *testing.T) {
 			t.Errorf("parseListLine(%v).Time = %v, want %v", lt.line, entry.Time, lt.time)
 		}
 	}
+}
+
+func TestParseUnsupportedListLine(t *testing.T) {
 	for _, lt := range listTestsFail {
 		_, err := parseListLine(lt.line)
 		if err == nil {
 			t.Errorf("parseListLine(%v) expected to fail", lt.line)
+		}
+		if err.Error() != lt.err {
+			t.Errorf("parseListLine(%v) expected to fail with error: '%s'; was: '%s'", lt.line, lt.err, err.Error())
 		}
 	}
 }
