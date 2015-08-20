@@ -13,7 +13,15 @@ const (
 	testDir  = "mydir"
 )
 
-func TestConn(t *testing.T) {
+func TestConnPASV(t *testing.T) {
+	testConn(t, true)
+}
+
+func TestConnEPSV(t *testing.T) {
+	testConn(t, false)
+}
+
+func testConn(t *testing.T, passive bool) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
@@ -21,6 +29,10 @@ func TestConn(t *testing.T) {
 	c, err := DialTimeout("localhost:21", 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if passive {
+		delete(c.features, "EPSV")
 	}
 
 	err = c.Login("anonymous", "anonymous")
