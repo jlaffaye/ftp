@@ -203,6 +203,20 @@ func TestConnIPv6(t *testing.T) {
 	c.Quit()
 }
 
+// TestConnect tests the legacy Connect function
+func TestConnect(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	c, err := Connect("localhost:21")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c.Quit()
+}
+
 func TestTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
