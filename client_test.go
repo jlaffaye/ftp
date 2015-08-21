@@ -180,7 +180,6 @@ func TestMultiline(t *testing.T) {
 	c.Quit()
 }
 
-// antioche.antioche.eu.org with IPv6
 func TestConnIPv6(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
@@ -203,3 +202,33 @@ func TestConnIPv6(t *testing.T) {
 
 	c.Quit()
 }
+
+func TestTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	c, err := DialTimeout("localhost:2121", 1*time.Second)
+	if err == nil {
+		t.Fatal("expected timeout, got nil error")
+		c.Quit()
+	}
+}
+
+func TestWrongLogin(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	c, err := DialTimeout("localhost:21", 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Quit()
+
+	err = c.Login("zoo2Shia", "fei5Yix9")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
