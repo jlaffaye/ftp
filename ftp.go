@@ -286,98 +286,169 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	return conn, nil
 }
 
-// parseListLine parses the various non-standard format returned by the LIST
-// FTP command.
-func parseListLine(line string) (*Entry, error) {
-	var err error
+var errUnsupportedListLine = errors.New("Unsupported LIST line")
 
-	// RFC3659 style
-	if i := strings.Index(line, ";"); i > 0 && i < strings.Index(line, " ") {
-		e := &Entry{}
-		arr := strings.Split(line, "; ")
-		e.Name = arr[1]
+// parseRFC3659ListLine parses the style of directory line defined in RFC 3659.
+func parseRFC3659ListLine(line string) (*Entry, error) {
+	if i := strings.Index(line, ";"); i < 0 || i > strings.Index(line, " ") {
+		return nil, errUnsupportedListLine
+	}
+	e := &Entry{}
+	arr := strings.Split(line, "; ")
+	e.Name = arr[1]
 
-		for _, field := range strings.Split(arr[0], ";") {
-			i := strings.Index(field, "=")
-			if i < 1 {
-				return nil, errors.New("Unsupported LIST line")
-			}
-
-			key := field[:i]
-			value := field[i+1:]
-
-			switch key {
-			case "modify":
-				e.Time, _ = time.Parse("20060102150405", value)
-			case "type":
-				switch value {
-				case "dir", "cdir", "pdir":
-					e.Type = EntryTypeFolder
-				case "file":
-					e.Type = EntryTypeFile
-				}
-			case "size":
-				e.setSize(value)
-			}
+	for _, field := range strings.Split(arr[0], ";") {
+		i := strings.Index(field, "=")
+		if i < 1 {
+			return nil, errUnsupportedListLine
 		}
-		return e, nil
 
-	} else {
-		fields := strings.Fields(line)
-		if len(fields) >= 7 && fields[1] == "folder" && fields[2] == "0" {
-			e := &Entry{
-				Type: EntryTypeFolder,
-				Name: strings.Join(fields[6:], " "),
-			}
-			if err = e.setTime(fields[3:6]); err != nil {
+		key := field[:i]
+		value := field[i+1:]
+
+		switch key {
+		case "modify":
+			var err error
+			e.Time, err = time.Parse("20060102150405", value)
+			if err != nil {
 				return nil, err
 			}
-
-			return e, nil
-		}
-
-		if fields[1] == "0" {
-			e := &Entry{
-				Type: EntryTypeFile,
-				Name: strings.Join(fields[7:], " "),
+		case "type":
+			switch value {
+			case "dir", "cdir", "pdir":
+				e.Type = EntryTypeFolder
+			case "file":
+				e.Type = EntryTypeFile
 			}
-
-			if err = e.setSize(fields[2]); err != nil {
-				return nil, err
-			}
-			if err = e.setTime(fields[4:7]); err != nil {
-				return nil, err
-			}
-
-			return e, nil
+		case "size":
+			e.setSize(value)
 		}
+	}
+	return e, nil
+}
 
-		if len(fields) < 9 {
-			return nil, errors.New("Unsupported LIST line")
+// parseLsListLine parses a directory line in a format based on the output of
+// the UNIX ls command.
+func parseLsListLine(line string) (*Entry, error) {
+	fields := strings.Fields(line)
+	if len(fields) >= 7 && fields[1] == "folder" && fields[2] == "0" {
+		e := &Entry{
+			Type: EntryTypeFolder,
+			Name: strings.Join(fields[6:], " "),
 		}
-
-		e := &Entry{}
-		switch fields[0][0] {
-		case '-':
-			e.Type = EntryTypeFile
-			if err = e.setSize(fields[4]); err != nil {
-				return nil, err
-			}
-		case 'd':
-			e.Type = EntryTypeFolder
-		case 'l':
-			e.Type = EntryTypeLink
-		default:
-			return nil, errors.New("Unknown entry type")
-		}
-
-		if err = e.setTime(fields[5:8]); err != nil {
+		if err := e.setTime(fields[3:6]); err != nil {
 			return nil, err
 		}
 
-		e.Name = strings.Join(fields[8:], " ")
 		return e, nil
 	}
+
+	if fields[1] == "0" {
+		e := &Entry{
+			Type: EntryTypeFile,
+			Name: strings.Join(fields[7:], " "),
+		}
+
+		if err := e.setSize(fields[2]); err != nil {
+			return nil, err
+		}
+		if err := e.setTime(fields[4:7]); err != nil {
+			return nil, err
+		}
+
+		return e, nil
+	}
+
+	if len(fields) < 9 {
+		return nil, errUnsupportedListLine
+	}
+
+	e := &Entry{}
+	switch fields[0][0] {
+	case '-':
+		e.Type = EntryTypeFile
+		if err := e.setSize(fields[4]); err != nil {
+			return nil, err
+		}
+	case 'd':
+		e.Type = EntryTypeFolder
+	case 'l':
+		e.Type = EntryTypeLink
+	default:
+		return nil, errors.New("Unknown entry type")
+	}
+
+	if err := e.setTime(fields[5:8]); err != nil {
+		return nil, err
+	}
+
+	e.Name = strings.Join(fields[8:], " ")
+	return e, nil
+}
+
+var dirTimeFormats = []string{
+	"01-02-06  03:04PM",
+	"2006-01-02  15:04",
+}
+
+// parseDirListLine parses a directory line in a format based on the output of
+// the MS-DOS DIR command.
+func parseDirListLine(line string) (*Entry, error) {
+	e := &Entry{}
+	var err error
+
+	// Try various time formats that DIR might use, and stop when one works.
+	for _, format := range dirTimeFormats {
+		e.Time, err = time.Parse(format, line[:len(format)])
+		if err == nil {
+			line = line[len(format):]
+			break
+		}
+	}
+	if err != nil {
+		// None of the time formats worked.
+		return nil, errUnsupportedListLine
+	}
+
+	line = strings.TrimLeft(line, " ")
+	if strings.HasPrefix(line, "<DIR>") {
+		e.Type = EntryTypeFolder
+		line = strings.TrimPrefix(line, "<DIR>")
+	} else {
+		space := strings.Index(line, " ")
+		if space == -1 {
+			return nil, errUnsupportedListLine
+		}
+		e.Size, err = strconv.ParseUint(line[:space], 10, 64)
+		if err != nil {
+			return nil, errUnsupportedListLine
+		}
+		e.Type = EntryTypeFile
+		line = line[space:]
+	}
+
+	e.Name = strings.TrimLeft(line, " ")
+	return e, nil
+}
+
+var listLineParsers = []func(line string) (*Entry, error){
+	parseRFC3659ListLine,
+	parseLsListLine,
+	parseDirListLine,
+}
+
+// parseListLine parses the various non-standard format returned by the LIST
+// FTP command.
+func parseListLine(line string) (*Entry, error) {
+	for _, f := range listLineParsers {
+		e, err := f(line)
+		if err == errUnsupportedListLine {
+			// Try another format.
+			continue
+		}
+		return e, err
+	}
+	return nil, errUnsupportedListLine
 }
 
 func (e *Entry) setSize(str string) (err error) {
@@ -430,18 +501,16 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	r := &response{conn, c}
 	defer r.Close()
 
-	bio := bufio.NewReader(r)
-	for {
-		line, e := bio.ReadString('\n')
-		if e == io.EOF {
-			break
-		} else if e != nil {
-			return nil, e
-		}
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		line := scanner.Text()
 		entry, err := parseListLine(line)
 		if err == nil {
 			entries = append(entries, entry)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 	return
 }
