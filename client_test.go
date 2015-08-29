@@ -156,30 +156,6 @@ func testConn(t *testing.T, passive bool) {
 	}
 }
 
-// ftp.mozilla.org uses multiline 220 response
-func TestMultiline(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
-
-	c, err := DialTimeout("ftp.mozilla.org:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = c.List(".")
-	if err != nil {
-		t.Error(err)
-	}
-
-	c.Quit()
-}
-
 func TestConnIPv6(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
@@ -245,4 +221,3 @@ func TestWrongLogin(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
-
