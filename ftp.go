@@ -290,14 +290,18 @@ var errUnsupportedListLine = errors.New("Unsupported LIST line")
 
 // parseRFC3659ListLine parses the style of directory line defined in RFC 3659.
 func parseRFC3659ListLine(line string) (*Entry, error) {
-	if i := strings.Index(line, ";"); i < 0 || i > strings.Index(line, " ") {
+	iSemicolon := strings.Index(line, ";")
+	iWhitespace := strings.Index(line, " ")
+
+	if iSemicolon < 0 || iSemicolon > iWhitespace {
 		return nil, errUnsupportedListLine
 	}
-	e := &Entry{}
-	arr := strings.Split(line, "; ")
-	e.Name = arr[1]
 
-	for _, field := range strings.Split(arr[0], ";") {
+	e := &Entry{
+		Name: line[iWhitespace+1 : len(line)],
+	}
+
+	for _, field := range strings.Split(line[:iWhitespace-1], ";") {
 		i := strings.Index(field, "=")
 		if i < 1 {
 			return nil, errUnsupportedListLine
