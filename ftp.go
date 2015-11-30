@@ -298,7 +298,7 @@ func parseRFC3659ListLine(line string) (*Entry, error) {
 	}
 
 	e := &Entry{
-		Name: line[iWhitespace+1 : len(line)],
+		Name: line[iWhitespace+1:],
 	}
 
 	for _, field := range strings.Split(line[:iWhitespace-1], ";") {
@@ -560,7 +560,7 @@ func (c *ServerConn) Retr(path string) (io.ReadCloser, error) {
 	return c.RetrFrom(path, 0)
 }
 
-// Retr issues a RETR FTP command to fetch the specified file from the remote
+// RetrFrom issues a RETR FTP command to fetch the specified file from the remote
 // FTP server, the server will not send the offset first bytes of the file.
 //
 // The returned ReadCloser must be closed to cleanup the FTP data connection.
@@ -581,7 +581,7 @@ func (c *ServerConn) Stor(path string, r io.Reader) error {
 	return c.StorFrom(path, r, 0)
 }
 
-// Stor issues a STOR FTP command to store a file to the remote FTP server.
+// StorFrom issues a STOR FTP command to store a file to the remote FTP server.
 // Stor creates the specified file with the content of the io.Reader, writing
 // on the server will start at the given file offset.
 //
