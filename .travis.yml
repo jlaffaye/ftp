@@ -1,7 +1,6 @@
 language: go
 go:
-- 1.4.2
-- tip
+- 1.5.1
 before_install:
 - sudo mkdir --mode 0777 -p /var/ftp/incoming
 - sudo apt-get install -qq vsftpd
@@ -9,6 +8,5 @@ before_install:
 - sudo service vsftpd restart
 - go get github.com/axw/gocov/gocov
 - go get github.com/mattn/goveralls
-- go get golang.org/x/tools/cmd/cover
 script:
 - $GOPATH/bin/goveralls -service=travis-ci
