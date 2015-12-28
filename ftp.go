@@ -347,6 +347,10 @@ func parseLsListLine(line string) (*Entry, error) {
 		return e, nil
 	}
 
+	if len(fields) < 8 {
+		return nil, errUnsupportedListLine
+	}
+
 	if fields[1] == "0" {
 		e := &Entry{
 			Type: EntryTypeFile,
