@@ -58,6 +58,8 @@ var listTestsFail = []unsupportedLine{
 	{"drwxr-xr-x    3 110      1002            3 Dec 02  209 pub", "Invalid year format in time string"},
 	{"modify=20150806235817;invalid;UNIX.owner=0; movies", "Unsupported LIST line"},
 	{"Zrwxrwxrwx   1 root     other          7 Jan 25 00:17 bin -> usr/bin", "Unknown entry type"},
+	{"total 1", "Unsupported LIST line"},
+	{"", "Unsupported LIST line"},
 }
 
 func TestParseValidListLine(t *testing.T) {

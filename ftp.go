@@ -347,6 +347,10 @@ func parseLsListLine(line string) (*Entry, error) {
 		return e, nil
 	}
 
+	if len(fields) < 8 {
+		return nil, errUnsupportedListLine
+	}
+
 	if fields[1] == "0" {
 		e := &Entry{
 			Type: EntryTypeFile,
@@ -403,10 +407,12 @@ func parseDirListLine(line string) (*Entry, error) {
 
 	// Try various time formats that DIR might use, and stop when one works.
 	for _, format := range dirTimeFormats {
-		e.Time, err = time.Parse(format, line[:len(format)])
-		if err == nil {
-			line = line[len(format):]
-			break
+		if len(line) > len(format) {
+			e.Time, err = time.Parse(format, line[:len(format)])
+			if err == nil {
+				line = line[len(format):]
+				break
+			}
 		}
 	}
 	if err != nil {
