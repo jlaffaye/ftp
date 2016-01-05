@@ -390,7 +390,20 @@ func parseLsListLine(line string) (*Entry, error) {
 		return nil, err
 	}
 
-	e.Name = strings.Join(fields[8:], " ")
+	//e.Name = strings.Join(fields[8:], " ") //if "aa   a.txt" then "aa a.txt"
+	idx := strings.Index(line, fields[7]) //not fields[8]
+	if idx > 0 {
+		e.Name = line[idx+len(fields[7]):]
+		e.Name = strings.TrimLeftFunc(e.Name, func(r rune) bool {
+			return r == '\t' || r == ' '
+		})
+		e.Name = strings.TrimRightFunc(e.Name, func(r rune) bool {
+			return r == '\r' || r == '\n'
+		})
+
+	} else {
+		e.Name = strings.Join(fields[8:], " ")
+	}
 	return e, nil
 }
 
