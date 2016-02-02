@@ -534,7 +534,20 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
-	conn, err := c.cmdDataConnFrom(0, "LIST %s", path)
+	var conn net.Conn
+
+	commands := []string{"MLSD", "LIST"}
+	if _, mlstSupported := c.features["MLST"]; !mlstSupported {
+		commands = commands[1:]
+	}
+
+	for _, cmd := range commands {
+		conn, err = c.cmdDataConnFrom(0, "%s %s", cmd, path)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return
 	}
