@@ -42,8 +42,8 @@ var listTests = []line{
 	{"-rwxrwxrwx   1 noone    nogroup      322 Aug 19  1996 message.ftp", "message.ftp", 322, EntryTypeFile, time.Date(1996, time.August, 19, 0, 0, 0, 0, time.UTC)},
 
 	// RFC3659 format: https://tools.ietf.org/html/rfc3659#section-7
-	{"modify=20150813224845;perm=fle;type=cdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; .", ".", 0, EntryTypeFolder, time.Date(2015, time.August, 13, 22, 48, 45, 0, time.UTC)},
-	{"modify=20150813224845;perm=fle;type=pdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; ..", "..", 0, EntryTypeFolder, time.Date(2015, time.August, 13, 22, 48, 45, 0, time.UTC)},
+	{"modify=20150813224845;perm=fle;type=cdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; .", "", 0, 0, time.Now()},
+	{"modify=20150813224845;perm=fle;type=pdir;unique=119FBB87U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; ..", "", 0, 0, time.Now()},
 	{"modify=20150806235817;perm=fle;type=dir;unique=1B20F360U4;UNIX.group=0;UNIX.mode=0755;UNIX.owner=0; movies", "movies", 0, EntryTypeFolder, time.Date(2015, time.August, 6, 23, 58, 17, 0, time.UTC)},
 	{"modify=20150814172949;perm=flcdmpe;type=dir;unique=85A0C168U4;UNIX.group=0;UNIX.mode=0777;UNIX.owner=0; _upload", "_upload", 0, EntryTypeFolder, time.Date(2015, time.August, 14, 17, 29, 49, 0, time.UTC)},
 	{"modify=20150813175250;perm=adfr;size=951;type=file;unique=119FBB87UE;UNIX.group=0;UNIX.mode=0644;UNIX.owner=0; welcome.msg", "welcome.msg", 951, EntryTypeFile, time.Date(2015, time.August, 13, 17, 52, 50, 0, time.UTC)},
@@ -73,6 +73,12 @@ func TestParseValidListLine(t *testing.T) {
 		entry, err := parseListLine(lt.line)
 		if err != nil {
 			t.Errorf("parseListLine(%v) returned err = %v", lt.line, err)
+			continue
+		}
+		if lt.name == "" {
+			if entry != nil {
+				t.Errorf("parseListLine(%v) must not be returned", lt.line)
+			}
 			continue
 		}
 		if entry.Name != lt.name {
