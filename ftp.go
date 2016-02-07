@@ -191,12 +191,16 @@ func (c *ServerConn) pasv() (port int, err error) {
 	start := strings.Index(line, "(")
 	end := strings.LastIndex(line, ")")
 	if start == -1 || end == -1 {
-		err = errors.New("Invalid PASV response format")
-		return
+		return 0, errors.New("Invalid PASV response format")
 	}
 
 	// We have to split the response string
 	pasvData := strings.Split(line[start+1:end], ",")
+
+	if len(pasvData) < 6 {
+		return 0, errors.New("Invalid PASV response format")
+	}
+
 	// Let's compute the port number
 	portPart1, err1 := strconv.Atoi(pasvData[4])
 	if err1 != nil {
