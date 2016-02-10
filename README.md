@@ -6,6 +6,12 @@
 
 A FTP client package for Go
 
+## Install ##
+
+```
+go get -u github.com/jlaffaye/ftp
+```
+
 ## Documentation ##
 
 http://godoc.org/github.com/jlaffaye/ftp
