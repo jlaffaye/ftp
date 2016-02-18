@@ -23,7 +23,7 @@ const (
 )
 
 type Conf struct {
-	timeout time.Duration
+	Timeout time.Duration
 }
 
 // ServerConn represents the connection to a remote FTP server.
