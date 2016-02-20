@@ -22,11 +22,15 @@ const (
 	EntryTypeLink
 )
 
+type Conf struct {
+	Timeout time.Duration
+}
+
 // ServerConn represents the connection to a remote FTP server.
 type ServerConn struct {
 	conn     *textproto.Conn
 	host     string
-	timeout  time.Duration
+	conf     Conf
 	features map[string]string
 }
 
@@ -59,7 +63,12 @@ func Dial(addr string) (*ServerConn, error) {
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
-	tconn, err := net.DialTimeout("tcp", addr, timeout)
+	return DialWithConf(addr, Conf{Timeout: timeout})
+}
+
+// DialWithConf is Dial plus configuration possibilities
+func DialWithConf(addr string, conf Conf) (*ServerConn, error) {
+	tconn, err := net.DialTimeout("tcp", addr, conf.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +86,8 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	c := &ServerConn{
 		conn:     conn,
 		host:     host,
-		timeout:  timeout,
 		features: make(map[string]string),
+		conf:     conf,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)
@@ -242,7 +251,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	// Build the new net address string
 	addr := net.JoinHostPort(c.host, strconv.Itoa(port))
 
-	return net.DialTimeout("tcp", addr, c.timeout)
+	return net.DialTimeout("tcp", addr, c.conf.Timeout)
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
