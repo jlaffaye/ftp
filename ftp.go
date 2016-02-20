@@ -63,12 +63,12 @@ func Dial(addr string) (*ServerConn, error) {
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
-	return DialWithConf(addr, Conf{timeout: timeout})
+	return DialWithConf(addr, Conf{Timeout: timeout})
 }
 
 // DialWithConf is Dial plus configuration possibilities
 func DialWithConf(addr string, conf Conf) (*ServerConn, error) {
-	tconn, err := net.DialTimeout("tcp", addr, conf.timeout)
+	tconn, err := net.DialTimeout("tcp", addr, conf.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	// Build the new net address string
 	addr := net.JoinHostPort(c.host, strconv.Itoa(port))
 
-	return net.DialTimeout("tcp", addr, c.conf.timeout)
+	return net.DialTimeout("tcp", addr, c.conf.Timeout)
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
