@@ -221,28 +221,18 @@ func (c *ServerConn) pasv() (port int, err error) {
 
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (net.Conn, error) {
-	var port int
-	var err error
+	var (
+		port int
+		err  error
+	)
 
-	//  If features contains nat6 or EPSV => EPSV
-	//  else -> PASV
-	_, nat6Supported := c.features["nat6"]
-	_, epsvSupported := c.features["EPSV"]
-
-	if !nat6Supported && !epsvSupported {
-		port, _ = c.pasv()
-	}
-	if port == 0 {
-		port, err = c.epsv()
-		if err != nil {
+	if port, err = c.epsv(); err != nil {
+		if port, err = c.pasv(); err != nil {
 			return nil, err
 		}
 	}
 
-	// Build the new net address string
-	addr := net.JoinHostPort(c.host, strconv.Itoa(port))
-
-	return net.DialTimeout("tcp", addr, c.timeout)
+	return net.DialTimeout("tcp", net.JoinHostPort(c.host, strconv.Itoa(port)), c.timeout)
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
