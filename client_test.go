@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/textproto"
+	"sync"
 	"testing"
 	"time"
 )
@@ -219,5 +220,107 @@ func TestWrongLogin(t *testing.T) {
 	err = c.Login("zoo2Shia", "fei5Yix9")
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	c, err := DialTimeout("localhost:21", 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Login("anonymous", "anonymous")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.ChangeDir("incoming")
+	if err != nil {
+		t.Error(err)
+	}
+
+	wg := sync.WaitGroup{}
+
+	files := []string{"test1", "test2"}
+	for _, f := range files {
+		wg.Add(1)
+
+		go func(fn string) {
+			data := bytes.NewBufferString(testData)
+			err := c.Stor(fn, data)
+			if err != nil {
+				t.Error(err)
+			}
+
+			_, err = c.List(".")
+			if err != nil {
+				t.Error(err)
+			}
+
+			err = c.Rename(fn, fn+"tset")
+			if err != nil {
+				t.Error(err)
+			}
+
+			r, err := c.Retr(fn + "tset")
+			if err != nil {
+				t.Error(err)
+			} else {
+				buf, err := ioutil.ReadAll(r)
+				if err != nil {
+					t.Error(err)
+				}
+				if string(buf) != testData {
+					t.Errorf("'%s'", buf)
+				}
+				r.Close()
+			}
+
+			r, err = c.RetrFrom(fn+"tset", 5)
+			if err != nil {
+				t.Error(err)
+			} else {
+				buf, err := ioutil.ReadAll(r)
+				if err != nil {
+					t.Error(err)
+				}
+				expected := testData[5:]
+				if string(buf) != expected {
+					t.Errorf("read %q, expected %q", buf, expected)
+				}
+				r.Close()
+			}
+
+			err = c.Delete(fn + "tset")
+			if err != nil {
+				t.Error(err)
+			}
+
+			wg.Done()
+		}(f)
+	}
+
+	wg.Wait()
+
+	err = c.Logout()
+	if err != nil {
+		if protoErr := err.(*textproto.Error); protoErr != nil {
+			if protoErr.Code != StatusNotImplemented {
+				t.Error(err)
+			}
+		} else {
+			t.Error(err)
+		}
+	}
+
+	c.Quit()
+
+	err = c.NoOp()
+	if err == nil {
+		t.Error("Expected error")
 	}
 }
