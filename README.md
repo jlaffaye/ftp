@@ -15,3 +15,10 @@ go get -u github.com/jlaffaye/ftp
 ## Documentation ##
 
 http://godoc.org/github.com/jlaffaye/ftp
+
+## Testing ##
+
+```
+docker build -t ftp-go .`
+docker run --rm ftp-go
+```
