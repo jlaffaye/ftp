@@ -257,6 +257,7 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	if offset != 0 {
 		_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
 		if err != nil {
+			conn.Close()
 			return nil, err
 		}
 	}
