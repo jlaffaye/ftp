@@ -3,6 +3,7 @@ package ftp
 import (
 	"bytes"
 	"io/ioutil"
+	"net"
 	"net/textproto"
 	"testing"
 	"time"
@@ -67,25 +68,22 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Error(err)
 	}
 
-	r, err := c.Retr("tset")
-	if err != nil {
-		t.Error(err)
-	} else {
-		buf, err := ioutil.ReadAll(r)
+	err = c.Retr("tset", func(conn net.Conn) error {
+		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
 			t.Error(err)
 		}
 		if string(buf) != testData {
 			t.Errorf("'%s'", buf)
 		}
-		r.Close()
-	}
-
-	r, err = c.RetrFrom("tset", 5)
+		return nil
+	})
 	if err != nil {
 		t.Error(err)
-	} else {
-		buf, err := ioutil.ReadAll(r)
+	}
+
+	err = c.RetrFrom("tset", 5, func(conn net.Conn) error {
+		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
 			t.Error(err)
 		}
@@ -93,7 +91,10 @@ func testConn(t *testing.T, disableEPSV bool) {
 		if string(buf) != expected {
 			t.Errorf("read %q, expected %q", buf, expected)
 		}
-		r.Close()
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
 	}
 
 	err = c.Delete("tset")
