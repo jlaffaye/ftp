@@ -1,0 +1,11 @@
+#!/bin/sh -e
+
+for cmds in NONE EPSV; do
+  # configure vsftpd
+  sudo cp $TRAVIS_BUILD_DIR/.vsftpd.conf /etc/vsftpd.conf
+  echo cmds_denied=$cmds | sudo tee --append /etc/vsftpd.conf
+  sudo service vsftpd restart
+
+  # run tests
+  go test -v -coverprofile="$cmds.coverprofile"
+done

@@ -24,10 +24,11 @@ const (
 
 // ServerConn represents the connection to a remote FTP server.
 type ServerConn struct {
-	conn     *textproto.Conn
-	host     string
-	timeout  time.Duration
-	features map[string]string
+	conn       *textproto.Conn
+	host       string
+	timeout    time.Duration
+	features   map[string]string
+	epsvFailed bool
 }
 
 // Entry describes a file and is returned by List().
@@ -226,7 +227,12 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 		err  error
 	)
 
-	if port, err = c.epsv(); err != nil {
+	if !c.epsvFailed {
+		if port, err = c.epsv(); err != nil {
+			c.epsvFailed = true
+		}
+	}
+	if c.epsvFailed {
 		if port, err = c.pasv(); err != nil {
 			return nil, err
 		}
