@@ -1,7 +1,6 @@
 language: go
 go:
-  - 1.5.3
-  - 1.6
+  - 1.7.3
 before_install:
 - sudo mkdir --mode 0777 -p /var/ftp/incoming
 - sudo apt-get update -qq
