@@ -21,7 +21,7 @@ func TestConnEPSV(t *testing.T) {
 	testConn(t, false)
 }
 
-func testConn(t *testing.T, passive bool) {
+func testConn(t *testing.T, disableEPSV bool) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
@@ -31,8 +31,9 @@ func testConn(t *testing.T, passive bool) {
 		t.Fatal(err)
 	}
 
-	if passive {
+	if disableEPSV {
 		delete(c.features, "EPSV")
+		c.disableEPSV = true
 	}
 
 	err = c.Login("anonymous", "anonymous")

@@ -24,10 +24,11 @@ const (
 
 // ServerConn represents the connection to a remote FTP server.
 type ServerConn struct {
-	conn     *textproto.Conn
-	host     string
-	timeout  time.Duration
-	features map[string]string
+	conn        *textproto.Conn
+	host        string
+	timeout     time.Duration
+	features    map[string]string
+	disableEPSV bool
 }
 
 // Entry describes a file and is returned by List().
@@ -219,17 +220,26 @@ func (c *ServerConn) pasv() (port int, err error) {
 	return
 }
 
+// getDataConnPort returns a port for a new data connection
+// it uses the best available method to do so
+func (c *ServerConn) getDataConnPort() (int, error) {
+	if !c.disableEPSV {
+		if port, err := c.epsv(); err == nil {
+			return port, nil
+		}
+
+		// if there is an error, disable EPSV for the next attempts
+		c.disableEPSV = true
+	}
+
+	return c.pasv()
+}
+
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (net.Conn, error) {
-	var (
-		port int
-		err  error
-	)
-
-	if port, err = c.epsv(); err != nil {
-		if port, err = c.pasv(); err != nil {
-			return nil, err
-		}
+	port, err := c.getDataConnPort()
+	if err != nil {
+		return nil, err
 	}
 
 	return net.DialTimeout("tcp", net.JoinHostPort(c.host, strconv.Itoa(port)), c.timeout)
