@@ -49,6 +49,10 @@ var listTests = []line{
 	// DOS DIR command output
 	{"08-07-15  07:50PM                  718 Post_PRR_20150901_1166_265118_13049.dat", "Post_PRR_20150901_1166_265118_13049.dat", 718, EntryTypeFile, time.Date(2015, time.August, 7, 19, 50, 0, 0, time.UTC)},
 	{"08-10-15  02:04PM       <DIR>          Billing", "Billing", 0, EntryTypeFolder, time.Date(2015, time.August, 10, 14, 4, 0, 0, time.UTC)},
+
+	// dir and file names that contain multiple spaces
+	{"drwxr-xr-x    3 110      1002            3 Dec 02  2009 spaces   dir   name", "spaces   dir   name", 0, EntryTypeFolder, time.Date(2009, time.December, 2, 0, 0, 0, 0, time.UTC)},
+	{"-rwxr-xr-x    3 110      1002            1234567 Dec 02  2009 file   name", "file   name", 1234567, EntryTypeFile, time.Date(2009, time.December, 2, 0, 0, 0, 0, time.UTC)},
 }
 
 // Not supported, we expect a specific error message

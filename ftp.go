@@ -325,6 +325,22 @@ func parseRFC3659ListLine(line string) (*Entry, error) {
 	return e, nil
 }
 
+// parse file or folder name with multiple spaces
+func parseLsListLineName(line string, fields []string, offset int) string {
+	if offset < 1 {
+		return ""
+	}
+
+	match := fields[offset-1]
+	index := strings.Index(line, match)
+	if index == -1 {
+		return ""
+	}
+
+	index += len(match)
+	return strings.TrimSpace(line[index:])
+}
+
 // parseLsListLine parses a directory line in a format based on the output of
 // the UNIX ls command.
 func parseLsListLine(line string) (*Entry, error) {
@@ -384,7 +400,11 @@ func parseLsListLine(line string) (*Entry, error) {
 		return nil, err
 	}
 
-	e.Name = strings.Join(fields[8:], " ")
+	e.Name = parseLsListLineName(line, fields, 8)
+	if len(e.Name) == 0 {
+		e.Name = strings.Join(fields[8:], " ")
+	}
+
 	return e, nil
 }
 
