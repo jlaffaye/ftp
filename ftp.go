@@ -4,6 +4,7 @@ package ftp
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
@@ -342,7 +343,7 @@ func parseLsListLineName(line string, fields []string, offset int) string {
 		return ""
 	}
 
-	match := fields[offset-1]
+	match := fmt.Sprintf(" %s ", fields[offset-1])
 	index := strings.Index(line, match)
 	if index == -1 {
 		return ""
