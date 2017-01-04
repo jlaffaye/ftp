@@ -687,6 +687,32 @@ func (c *ServerConn) Quit() error {
 	return c.conn.Close()
 }
 
+// SetUTF8 issues a OPTS UTF8 ON/OFF command.
+func (c *ServerConn) SetUTF8(on bool) error {
+	var code int
+	var message string
+	var err error
+
+	if on {
+		code, message, err = c.cmd(-1, "OPTS UTF8 ON")
+	} else {
+		code, message, err = c.cmd(-1, "OPTS UTF8 OFF")
+	}
+
+	if err != nil {
+		return err
+	}
+
+	switch code {
+
+	case StatusCommandOK:
+		return nil
+
+	default:
+		return errors.New(message)
+	}
+}
+
 // Read implements the io.Reader interface on a FTP data connection.
 func (r *response) Read(buf []byte) (int, error) {
 	return r.conn.Read(buf)
