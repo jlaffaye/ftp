@@ -512,6 +512,28 @@ func (e *Entry) setTime(fields []string) (err error) {
 	return
 }
 
+func (c *ServerConn) LastModificationDate(path string) (t time.Time, err error) {
+	if _, mdtmSupported := c.features["MDTM"]; !mdtmSupported {
+		return t, errors.New("MDTM is not supported on this server")
+	}
+
+	_, msg, err := c.cmd(StatusFile, "MDTM %s", path)
+	if err != nil {
+		return
+	}
+
+	// Line formats:
+	// 213 20150413095032
+	// 213 20150413095032.999
+	if len(msg) < 14 {
+		return t, errors.New("Command unsupported on this server")
+	}
+
+	gmtLoc, _ := time.LoadLocation("GMT")
+	t, err = time.ParseInLocation("20060102150405.999", msg, gmtLoc)
+	return
+}
+
 // NameList issues an NLST FTP command.
 func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	conn, err := c.cmdDataConnFrom(0, "NLST %s", path)
