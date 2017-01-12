@@ -325,10 +325,15 @@ func parseRFC3659ListLine(line string) (*Entry, error) {
 			}
 		case "type":
 			switch value {
-			case "dir", "cdir", "pdir":
+			case "cdir", "pdir":
+				// Discard current and parent dir
+				return nil, nil
+			case "dir":
 				e.Type = EntryTypeFolder
 			case "file":
 				e.Type = EntryTypeFile
+			case "OS.unix=symlink":
+				e.Type = EntryTypeLink
 			}
 		case "size":
 			e.setSize(value)
@@ -507,6 +512,28 @@ func (e *Entry) setTime(fields []string) (err error) {
 	return
 }
 
+func (c *ServerConn) LastModificationDate(path string) (t time.Time, err error) {
+	if _, mdtmSupported := c.features["MDTM"]; !mdtmSupported {
+		return t, errors.New("MDTM is not supported on this server")
+	}
+
+	_, msg, err := c.cmd(StatusFile, "MDTM %s", path)
+	if err != nil {
+		return
+	}
+
+	// Line formats:
+	// 213 20150413095032
+	// 213 20150413095032.999
+	if len(msg) < 14 {
+		return t, errors.New("Command unsupported on this server")
+	}
+
+	gmtLoc, _ := time.LoadLocation("GMT")
+	t, err = time.ParseInLocation("20060102150405.999", msg, gmtLoc)
+	return
+}
+
 // NameList issues an NLST FTP command.
 func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	conn, err := c.cmdDataConnFrom(0, "NLST %s", path)
@@ -529,7 +556,20 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
-	conn, err := c.cmdDataConnFrom(0, "LIST %s", path)
+	var conn net.Conn
+
+	commands := []string{"MLSD", "LIST"}
+	if _, mlstSupported := c.features["MLST"]; !mlstSupported {
+		commands = commands[1:]
+	}
+
+	for _, cmd := range commands {
+		conn, err = c.cmdDataConnFrom(0, "%s %s", cmd, path)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return
 	}
@@ -541,7 +581,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		entry, err := parseListLine(line)
-		if err == nil {
+		if err == nil && entry != nil {
 			entries = append(entries, entry)
 		}
 	}
