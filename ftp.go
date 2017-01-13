@@ -340,7 +340,7 @@ func parseRFC3659ListLine(line string) (*Entry, error) {
 // parse file or folder name with starting or containing multiple whitespaces
 func fieldsLsList(s string) []string {
 	n := 8
-	fields := make([]string, 0, n)
+	fields := make([]string, 0, n+1)
 	fieldStart := -1
 	nextbreak := false
 	for i, c := range s {
