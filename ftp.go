@@ -4,13 +4,13 @@ package ftp
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // EntryType describes the different types of an Entry.
@@ -337,26 +337,42 @@ func parseRFC3659ListLine(line string) (*Entry, error) {
 	return e, nil
 }
 
-// parse file or folder name with multiple spaces
-func parseLsListLineName(line string, fields []string, offset int) string {
-	if offset < 1 {
-		return ""
+// parse file or folder name with starting or containing multiple whitespaces
+func fieldsLsList(s string) []string {
+	n := 8
+	fields := make([]string, 0, n)
+	fieldStart := -1
+	nextbreak := false
+	for i, c := range s {
+		if unicode.IsSpace(c) {
+			if fieldStart >= 0 {
+				fields = append(fields, s[fieldStart:i])
+				fieldStart = -1
+			}
+			if nextbreak {
+				fields = append(fields, s[i+1:])
+				break
+			}
+		} else {
+			if fieldStart == -1 {
+				fieldStart = i
+				if len(fields) == n-1 {
+					nextbreak = true
+				}
+			}
+		}
 	}
-
-	match := fmt.Sprintf(" %s ", fields[offset-1])
-	index := strings.Index(line, match)
-	if index == -1 {
-		return ""
+	if fieldStart != -1 {
+		fields = append(fields, s[fieldStart:])
 	}
-
-	index += len(match)
-	return strings.TrimSpace(line[index:])
+	return fields
 }
 
 // parseLsListLine parses a directory line in a format based on the output of
 // the UNIX ls command.
 func parseLsListLine(line string) (*Entry, error) {
-	fields := strings.Fields(line)
+	fields := fieldsLsList(line)
+
 	if len(fields) >= 7 && fields[1] == "folder" && fields[2] == "0" {
 		e := &Entry{
 			Type: EntryTypeFolder,
@@ -412,10 +428,7 @@ func parseLsListLine(line string) (*Entry, error) {
 		return nil, err
 	}
 
-	e.Name = parseLsListLineName(line, fields, 8)
-	if len(e.Name) == 0 {
-		e.Name = strings.Join(fields[8:], " ")
-	}
+	e.Name = fields[8]
 
 	return e, nil
 }
