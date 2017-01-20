@@ -94,6 +94,12 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 		return nil, err
 	}
 
+	err = c.setUTF8()
+	if err != nil {
+		c.Quit()
+		return nil, err
+	}
+
 	return c, nil
 }
 
@@ -159,6 +165,24 @@ func (c *ServerConn) feat() error {
 		}
 
 		c.features[command] = commandDesc
+	}
+
+	return nil
+}
+
+// setUTF8 issues an "OPTS UTF8 ON" command.
+func (c *ServerConn) setUTF8() error {
+	if _, ok := c.features["UTF8"]; !ok {
+		return nil
+	}
+
+	code, message, err := c.cmd(-1, "OPTS UTF8 ON")
+	if err != nil {
+		return err
+	}
+
+	if code != StatusCommandOK {
+		return errors.New(message)
 	}
 
 	return nil
