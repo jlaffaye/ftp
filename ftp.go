@@ -24,11 +24,12 @@ const (
 
 // ServerConn represents the connection to a remote FTP server.
 type ServerConn struct {
-	conn        *textproto.Conn
-	host        string
-	timeout     time.Duration
-	features    map[string]string
-	disableEPSV bool
+	conn          *textproto.Conn
+	host          string
+	timeout       time.Duration
+	features      map[string]string
+	disableEPSV   bool
+	mlstSupported bool
 }
 
 // Entry describes a file and is returned by List().
@@ -98,6 +99,10 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	if err != nil {
 		c.Quit()
 		return nil, err
+	}
+
+	if _, mlstSupported := c.features["MLST"]; mlstSupported {
+		c.mlstSupported = true
 	}
 
 	return c, nil
@@ -337,7 +342,18 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
-	conn, err := c.cmdDataConnFrom(0, "LIST %s", path)
+	var cmd string
+	var parseFunc func(string) (*Entry, error)
+
+	if c.mlstSupported {
+		cmd = "MLSD"
+		parseFunc = parseRFC3659ListLine
+	} else {
+		cmd = "LIST"
+		parseFunc = parseListLine
+	}
+
+	conn, err := c.cmdDataConnFrom(0, "%s %s", cmd, path)
 	if err != nil {
 		return
 	}
@@ -347,8 +363,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		line := scanner.Text()
-		entry, err := parseListLine(line)
+		entry, err := parseFunc(scanner.Text())
 		if err == nil {
 			entries = append(entries, entry)
 		}
