@@ -6,6 +6,8 @@ import (
 	"net/textproto"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -25,11 +27,10 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	require := require.New(t)
 
 	c, err := DialTimeout("localhost:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 
 	if disableEPSV {
 		delete(c.features, "EPSV")
@@ -37,106 +38,61 @@ func testConn(t *testing.T, disableEPSV bool) {
 	}
 
 	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 
 	err = c.NoOp()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	err = c.ChangeDir("incoming")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	data := bytes.NewBufferString(testData)
 	err = c.Stor("test", data)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	_, err = c.List(".")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	err = c.Rename("test", "tset")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	r, err := c.Retr("tset")
-	if err != nil {
-		t.Error(err)
-	} else {
-		buf, err := ioutil.ReadAll(r)
-		if err != nil {
-			t.Error(err)
-		}
-		if string(buf) != testData {
-			t.Errorf("'%s'", buf)
-		}
-		r.Close()
-	}
+	require.NoError(err)
+	buf, err := ioutil.ReadAll(r)
+	require.NoError(err)
+	require.Equal(testData, string(buf))
+	err = r.Close()
+	require.NoError(err)
 
 	r, err = c.RetrFrom("tset", 5)
-	if err != nil {
-		t.Error(err)
-	} else {
-		buf, err := ioutil.ReadAll(r)
-		if err != nil {
-			t.Error(err)
-		}
-		expected := testData[5:]
-		if string(buf) != expected {
-			t.Errorf("read %q, expected %q", buf, expected)
-		}
-		r.Close()
-	}
+	require.NoError(err)
+	buf, err = ioutil.ReadAll(r)
+	require.NoError(err)
+	require.Equal(testData[5:], string(buf))
+	r.Close()
 
 	err = c.Delete("tset")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	err = c.MakeDir(testDir)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	err = c.ChangeDir(testDir)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	dir, err := c.CurrentDir()
-	if err != nil {
-		t.Error(err)
-	} else {
-		if dir != "/incoming/"+testDir {
-			t.Error("Wrong dir: " + dir)
-		}
-	}
+	require.NoError(err)
+	require.Equal("/incoming/"+testDir, dir)
 
 	err = c.ChangeDirToParent()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	entries, err := c.NameList("/")
-	if err != nil {
-		t.Error(err)
-	}
-	if len(entries) != 1 || entries[0] != "/incoming" {
-		t.Errorf("Unexpected entries: %v", entries)
-	}
+	require.NoError(err)
+	require.EqualValues([]string{"/incoming"}, entries)
 
 	err = c.RemoveDir(testDir)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
 	err = c.Logout()
 	if err != nil {
@@ -149,35 +105,31 @@ func testConn(t *testing.T, disableEPSV bool) {
 		}
 	}
 
-	c.Quit()
+	err = c.Quit()
+	require.NoError(err)
 
 	err = c.NoOp()
-	if err == nil {
-		t.Error("Expected error")
-	}
+	require.Error(err)
+	require.Regexp("write tcp .* use of closed network connection", err.Error())
 }
 
 func TestConnIPv6(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	require := require.New(t)
 
 	c, err := DialTimeout("[::1]:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 
 	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 
 	_, err = c.List(".")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(err)
 
-	c.Quit()
+	err = c.Quit()
+	require.NoError(err)
 }
 
 // TestConnect tests the legacy Connect function
@@ -187,38 +139,33 @@ func TestConnect(t *testing.T) {
 	}
 
 	c, err := Connect("localhost:21")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	c.Quit()
 }
 
-func TestTimeout(t *testing.T) {
+func TestDialTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	require := require.New(t)
 
-	c, err := DialTimeout("localhost:2121", 1*time.Second)
-	if err == nil {
-		t.Fatal("expected timeout, got nil error")
-		c.Quit()
-	}
+	_, err := DialTimeout("localhost:2121", 1*time.Second)
+	require.Error(err)
+	require.Regexp("dial tcp .* connection refused", err.Error())
 }
 
 func TestWrongLogin(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	require := require.New(t)
 
 	c, err := DialTimeout("localhost:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 	defer c.Quit()
 
 	err = c.Login("zoo2Shia", "fei5Yix9")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	require.Error(err)
+	require.Regexp("(Login incorrect|anonymous only)", err.Error())
 }
