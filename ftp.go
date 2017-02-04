@@ -95,12 +95,6 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 		return nil, err
 	}
 
-	err = c.setUTF8()
-	if err != nil {
-		c.Quit()
-		return nil, err
-	}
-
 	if _, mlstSupported := c.features["MLST"]; mlstSupported {
 		c.mlstSupported = true
 	}
@@ -130,8 +124,12 @@ func (c *ServerConn) Login(user, password string) error {
 	}
 
 	// Switch to binary mode
-	_, _, err = c.cmd(StatusCommandOK, "TYPE I")
-	if err != nil {
+	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
+		return err
+	}
+
+	// Switch to UTF-8
+	if err := c.setUTF8(); err != nil {
 		return err
 	}
 
