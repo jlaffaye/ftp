@@ -33,7 +33,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 
 	if disableEPSV {
 		delete(c.features, "EPSV")
-		c.disableEPSV = true
+		c.DisableEPSV = true
 	}
 
 	err = c.Login("anonymous", "anonymous")
