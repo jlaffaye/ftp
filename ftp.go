@@ -408,13 +408,13 @@ func (c *ServerConn) CurrentDir() (string, error) {
 }
 
 // FileSize issues a SIZE FTP command, which Returns the size of the file
-func (c *ServerConn) FileSize(path string) (int, error) {
+func (c *ServerConn) FileSize(path string) (int64, error) {
 	_, msg, err := c.cmd(StatusFile, "SIZE %s", path)
 	if err != nil {
 		return 0, err
 	}
 
-	size, err := strconv.Atoi(msg)
+	size, err := strconv.ParseInt(msg, 10, 64)
 	if err != nil {
 		return 0, err
 	}
