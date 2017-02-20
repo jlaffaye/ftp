@@ -414,12 +414,7 @@ func (c *ServerConn) FileSize(path string) (int64, error) {
 		return 0, err
 	}
 
-	size, err := strconv.ParseInt(msg, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return size, nil
+	return strconv.ParseInt(msg, 10, 64)
 }
 
 // Retr issues a RETR FTP command to fetch the specified file from the remote

@@ -104,6 +104,20 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Errorf("file size %q, expected %q", fileSize, 14)
 	}
 
+	data = bytes.NewBufferString("")
+	err = c.Stor("tset", data)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fileSize, err = c.FileSize("tset")
+	if err != nil {
+		t.Error(err)
+	}
+	if fileSize != 0 {
+		t.Errorf("file size %q, expected %q", fileSize, 0)
+	}
+
 	fileSize, err = c.FileSize("not-found")
 	if err == nil {
 		t.Fatal("expected error, got nil")
