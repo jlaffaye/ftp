@@ -407,6 +407,16 @@ func (c *ServerConn) CurrentDir() (string, error) {
 	return msg[start+1 : end], nil
 }
 
+// FileSize issues a SIZE FTP command, which Returns the size of the file
+func (c *ServerConn) FileSize(path string) (int64, error) {
+	_, msg, err := c.cmd(StatusFile, "SIZE %s", path)
+	if err != nil {
+		return 0, err
+	}
+
+	return strconv.ParseInt(msg, 10, 64)
+}
+
 // Retr issues a RETR FTP command to fetch the specified file from the remote
 // FTP server.
 //
