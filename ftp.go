@@ -1,4 +1,6 @@
 // Package ftp implements a FTP client as described in RFC 959.
+//
+// A textproto.Error is returned for errors at the protocol level.
 package ftp
 
 import (
@@ -23,6 +25,7 @@ const (
 )
 
 // ServerConn represents the connection to a remote FTP server.
+// It should be protected from concurrent accesses.
 type ServerConn struct {
 	// Do not use EPSV mode
 	DisableEPSV bool
