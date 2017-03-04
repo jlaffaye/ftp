@@ -186,6 +186,13 @@ func (c *ServerConn) setUTF8() error {
 		return err
 	}
 
+	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
+	// "202 UTF8 mode is always enabled. No need to send this command." when
+	// trying to use it. That's OK
+	if code == StatusCommandNotImplemented {
+		return nil
+	}
+
 	if code != StatusCommandOK {
 		return errors.New(message)
 	}
