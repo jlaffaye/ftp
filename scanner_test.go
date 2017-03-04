@@ -6,7 +6,7 @@ import "github.com/stretchr/testify/assert"
 func TestScanner(t *testing.T) {
 	assert := assert.New(t)
 
-	s := NewScanner("foo  bar x  y")
+	s := newScanner("foo  bar x  y")
 	assert.Equal("foo", s.Next())
 	assert.Equal(" bar x  y", s.Remaining())
 	assert.Equal("bar", s.Next())
@@ -21,7 +21,7 @@ func TestScanner(t *testing.T) {
 func TestScannerEmpty(t *testing.T) {
 	assert := assert.New(t)
 
-	s := NewScanner("")
+	s := newScanner("")
 	assert.Equal("", s.Next())
 	assert.Equal("", s.Next())
 	assert.Equal("", s.Remaining())

@@ -1,20 +1,20 @@
 package ftp
 
-// A Scanner for fields delimited by one or more whitespace characters
-type Scanner struct {
+// A scanner for fields delimited by one or more whitespace characters
+type scanner struct {
 	bytes    []byte
 	position int
 }
 
-// NewScanner creates a new Scanner
-func NewScanner(str string) *Scanner {
-	return &Scanner{
+// newScanner creates a new scanner
+func newScanner(str string) *scanner {
+	return &scanner{
 		bytes: []byte(str),
 	}
 }
 
 // NextFields returns the next `count` fields
-func (s *Scanner) NextFields(count int) []string {
+func (s *scanner) NextFields(count int) []string {
 	fields := make([]string, 0, count)
 	for i := 0; i < count; i++ {
 		if field := s.Next(); field != "" {
@@ -27,7 +27,7 @@ func (s *Scanner) NextFields(count int) []string {
 }
 
 // Next returns the next field
-func (s *Scanner) Next() string {
+func (s *scanner) Next() string {
 	sLen := len(s.bytes)
 
 	// skip trailing whitespace
@@ -53,6 +53,6 @@ func (s *Scanner) Next() string {
 }
 
 // Remaining returns the remaining string
-func (s *Scanner) Remaining() string {
+func (s *scanner) Remaining() string {
 	return string(s.bytes[s.position:len(s.bytes)])
 }

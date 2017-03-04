@@ -72,7 +72,7 @@ func parseLsListLine(line string) (*Entry, error) {
 		return nil, errUnsupportedListLine
 	}
 
-	scanner := NewScanner(line)
+	scanner := newScanner(line)
 	fields := scanner.NextFields(6)
 
 	if len(fields) < 6 {
