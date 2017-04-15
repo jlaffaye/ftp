@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/textproto"
+	"strings"
 	"testing"
 	"time"
 )
@@ -67,6 +68,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Error(err)
 	}
 
+	// Read without deadline
 	r, err := c.Retr("tset")
 	if err != nil {
 		t.Error(err)
@@ -81,6 +83,22 @@ func testConn(t *testing.T, disableEPSV bool) {
 		r.Close()
 	}
 
+	// Read with deadline
+	r, err = c.Retr("tset")
+	if err != nil {
+		t.Error(err)
+	} else {
+		r.SetDeadline(time.Now())
+		_, err := ioutil.ReadAll(r)
+		if err == nil {
+			t.Error("deadline should have caused error")
+		} else if !strings.HasSuffix(err.Error(), "i/o timeout") {
+			t.Error(err)
+		}
+		r.Close()
+	}
+
+	// Read with offset
 	r, err = c.RetrFrom("tset", 5)
 	if err != nil {
 		t.Error(err)
