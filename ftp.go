@@ -47,8 +47,9 @@ type Entry struct {
 
 // Response represents a data-connection
 type Response struct {
-	conn net.Conn
-	c    *ServerConn
+	conn       net.Conn
+	c          *ServerConn
+	connClosed bool
 }
 
 // Connect is an alias to Dial, for backward compatibility
@@ -337,7 +338,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 		return
 	}
 
-	r := &Response{conn, c}
+	r := &Response{conn, c, false}
 	defer r.Close()
 
 	scanner := bufio.NewScanner(r)
@@ -368,7 +369,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		return
 	}
 
-	r := &Response{conn, c}
+	r := &Response{conn, c, false}
 	defer r.Close()
 
 	scanner := bufio.NewScanner(r)
@@ -445,7 +446,7 @@ func (c *ServerConn) RetrFrom(path string, offset uint64) (*Response, error) {
 		return nil, err
 	}
 
-	return &Response{conn, c}, nil
+	return &Response{conn, c, false}, nil
 }
 
 // Stor issues a STOR FTP command to store a file to the remote FTP server.
@@ -537,11 +538,15 @@ func (r *Response) Read(buf []byte) (int, error) {
 
 // Close implements the io.Closer interface on a FTP data connection.
 func (r *Response) Close() error {
+	if r.connClosed == true {
+		return nil
+	}
 	err := r.conn.Close()
 	_, _, err2 := r.c.conn.ReadResponse(StatusClosingDataConnection)
 	if err2 != nil {
 		err = err2
 	}
+	r.connClosed = true
 	return err
 }
 
