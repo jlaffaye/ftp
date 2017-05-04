@@ -338,7 +338,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 		return
 	}
 
-	r := &Response{conn, c, false}
+	r := &Response{conn: conn, c: c}
 	defer r.Close()
 
 	scanner := bufio.NewScanner(r)
@@ -369,7 +369,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		return
 	}
 
-	r := &Response{conn, c, false}
+	r := &Response{conn: conn, c: c}
 	defer r.Close()
 
 	scanner := bufio.NewScanner(r)
@@ -446,7 +446,7 @@ func (c *ServerConn) RetrFrom(path string, offset uint64) (*Response, error) {
 		return nil, err
 	}
 
-	return &Response{conn, c, false}, nil
+	return &Response{conn: conn, c: c}, nil
 }
 
 // Stor issues a STOR FTP command to store a file to the remote FTP server.
@@ -538,7 +538,7 @@ func (r *Response) Read(buf []byte) (int, error) {
 
 // Close implements the io.Closer interface on a FTP data connection.
 func (r *Response) Close() error {
-	if r.connClosed == true {
+	if r.connClosed {
 		return nil
 	}
 	err := r.conn.Close()
