@@ -537,6 +537,7 @@ func (r *Response) Read(buf []byte) (int, error) {
 }
 
 // Close implements the io.Closer interface on a FTP data connection.
+// After the first call, Close will do nothing and return nil.
 func (r *Response) Close() error {
 	if r.closed {
 		return nil
