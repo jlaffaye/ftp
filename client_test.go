@@ -81,6 +81,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 			t.Errorf("'%s'", buf)
 		}
 		r.Close()
+		r.Close() // test we can close two times
 	}
 
 	// Read with deadline

@@ -47,9 +47,9 @@ type Entry struct {
 
 // Response represents a data-connection
 type Response struct {
-	conn       net.Conn
-	c          *ServerConn
-	connClosed bool
+	conn   net.Conn
+	c      *ServerConn
+	closed bool
 }
 
 // Connect is an alias to Dial, for backward compatibility
@@ -538,7 +538,7 @@ func (r *Response) Read(buf []byte) (int, error) {
 
 // Close implements the io.Closer interface on a FTP data connection.
 func (r *Response) Close() error {
-	if r.connClosed {
+	if r.closed {
 		return nil
 	}
 	err := r.conn.Close()
@@ -546,7 +546,7 @@ func (r *Response) Close() error {
 	if err2 != nil {
 		err = err2
 	}
-	r.connClosed = true
+	r.closed = true
 	return err
 }
 
