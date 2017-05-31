@@ -94,6 +94,14 @@ func TestMultiline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = c.Binary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.SetUTF8()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	c.Quit()
 
