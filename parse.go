@@ -192,14 +192,14 @@ func parseHostedFTPLine(line string) (*Entry, error) {
 	}
 
 	scanner := newScanner(line)
-	fields := scanner.NextFields(9)
-	if fields[1] == "0" { // Set link count to 1 and attempt to parse as Unix.
-		fields[1] = "1"
-		newLine := strings.Join(fields, " ")
-		return parseLsListLine(newLine)
-	}
-	return nil, errUnsupportedListLine
+	fields := scanner.NextFields(2)
 
+	if len(fields) < 2 || fields[1] != "0" {
+		return nil, errUnsupportedListLine
+	}
+
+	// Set link count to 1 and attempt to parse as Unix.
+	return parseLsListLine(fields[0] + " 1 " + scanner.Remaining())
 }
 
 // parseListLine parses the various non-standard format returned by the LIST

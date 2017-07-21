@@ -69,6 +69,7 @@ var listTestsFail = []unsupportedLine{
 	{"modify=20150806235817;invalid;UNIX.owner=0; movies", "Unsupported LIST line"},
 	{"Zrwxrwxrwx   1 root     other          7 Jan 25 00:17 bin -> usr/bin", "Unknown entry type"},
 	{"total 1", "Unsupported LIST line"},
+	{"000000000x ", "Unsupported LIST line"}, // see https://github.com/jlaffaye/ftp/issues/97
 	{"", "Unsupported LIST line"},
 }
 
