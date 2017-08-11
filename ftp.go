@@ -5,6 +5,7 @@ package ftp
 
 import (
 	"bufio"
+	"crypto/tls"
 	"errors"
 	"io"
 	"net"
@@ -62,6 +63,15 @@ func Dial(addr string) (*ServerConn, error) {
 	return DialTimeout(addr, 0)
 }
 
+// Dial a ftps server with implicit TLS
+func DialImplicitTLS(addr string, config *tls.Config) (*ServerConn, error) {
+	tconn, err := tls.Dial("tcp", addr, config)
+	if err != nil {
+		return nil, err
+	}
+	return dialServer(tconn, 0)
+}
+
 // DialTimeout initializes the connection to the specified ftp server address.
 //
 // It is generally followed by a call to Login() as most FTP commands require
@@ -71,7 +81,10 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	if err != nil {
 		return nil, err
 	}
+	return dialServer(tconn, timeout)
+}
 
+func dialServer(tconn net.Conn, timeout time.Duration) (*ServerConn, error) {
 	// Use the resolved IP address in case addr contains a domain name
 	// If we use the domain name, we might not resolve to the same IP.
 	remoteAddr := tconn.RemoteAddr().String()

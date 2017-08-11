@@ -2,8 +2,10 @@ package ftp
 
 import (
 	"bytes"
+	"crypto/tls"
 	"io/ioutil"
 	"net/textproto"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -14,20 +16,39 @@ const (
 	testDir  = "mydir"
 )
 
+func isTLSServer() bool {
+	return os.Getenv("FTP_SERVER") == "vsftpd_implicit_tls"
+}
+
+func getConnection() (*ServerConn, error) {
+	if isTLSServer() {
+		return DialImplicitTLS("localhost:21", &tls.Config{InsecureSkipVerify: true})
+	} else {
+		return DialTimeout("localhost:21", 5*time.Second)
+	}
+}
+
 func TestConnPASV(t *testing.T) {
-	testConn(t, true)
+	testConn(t, true, false)
 }
 
 func TestConnEPSV(t *testing.T) {
-	testConn(t, false)
+	testConn(t, false, false)
 }
 
-func testConn(t *testing.T, disableEPSV bool) {
+func TestConnTLS(t *testing.T) {
+	if !isTLSServer() {
+		t.Skip("skipping test in non TLS server env.")
+	}
+	testConn(t, false, true)
+}
+
+func testConn(t *testing.T, disableEPSV bool, implicitTLS bool) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	c, err := getConnection()
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,6 +228,9 @@ func TestConnIPv6(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	if isTLSServer() {
+		t.Skip("skipping test in TLS mode.")
+	}
 
 	c, err := DialTimeout("[::1]:21", 5*time.Second)
 	if err != nil {
@@ -228,7 +252,7 @@ func TestConnIPv6(t *testing.T) {
 
 // TestConnect tests the legacy Connect function
 func TestConnect(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || isTLSServer() {
 		t.Skip("skipping test in short mode.")
 	}
 
@@ -244,6 +268,9 @@ func TestTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	if isTLSServer() {
+		t.Skip("skipping test in TLS mode.")
+	}
 
 	c, err := DialTimeout("localhost:2121", 1*time.Second)
 	if err == nil {
@@ -251,13 +278,12 @@ func TestTimeout(t *testing.T) {
 		c.Quit()
 	}
 }
-
 func TestWrongLogin(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
+	c, err := getConnection()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +299,7 @@ func TestDeleteDirRecur(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	c, err := DialTimeout("localhost:21", 5*time.Second)
+	c, err := getConnection()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +381,7 @@ func TestFileDeleteDirRecur(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
+	c, err := getConnection()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,7 +440,7 @@ func TestMissingFolderDeleteDirRecur(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
+	c, err := getConnection()
 	if err != nil {
 		t.Fatal(err)
 	}
