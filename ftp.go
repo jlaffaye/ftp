@@ -46,6 +46,10 @@ type Entry struct {
 	Time time.Time
 }
 
+func (m Entry) IsDir() bool {
+	return m.Type == EntryTypeFolder
+}
+
 // Response represents a data-connection
 type Response struct {
 	conn   net.Conn
@@ -340,7 +344,6 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 		conn.Close()
 		return nil, &textproto.Error{Code: code, Msg: msg}
 	}
-
 	return conn, nil
 }
 
@@ -360,6 +363,23 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	}
 	if err = scanner.Err(); err != nil {
 		return entries, err
+	}
+	return
+}
+
+// Stat issues an MLST FTP command.
+func (c *ServerConn) Stat(path string) (entry *Entry, err error) {
+	_, msg, err := c.cmd(StatusRequestedFileActionOK, "MLST %s", path)
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(msg, "\n")
+	for _, line := range lines {
+		entry, err = parseRFC3659ListLine(strings.TrimSpace(line))
+		if err == nil {
+			return entry, err
+		}
 	}
 	return
 }
