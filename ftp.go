@@ -74,17 +74,13 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 
 	// Use the resolved IP address in case addr contains a domain name
 	// If we use the domain name, we might not resolve to the same IP.
-	remoteAddr := tconn.RemoteAddr().String()
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		return nil, err
-	}
+	remoteAddr := tconn.RemoteAddr().(*net.TCPAddr)
 
 	conn := textproto.NewConn(tconn)
 
 	c := &ServerConn{
 		conn:     conn,
-		host:     host,
+		host:     remoteAddr.IP.String(),
 		timeout:  timeout,
 		features: make(map[string]string),
 	}
