@@ -5,6 +5,7 @@ package ftp
 
 import (
 	"bufio"
+	"crypto/tls"
 	"errors"
 	"io"
 	"net"
@@ -45,6 +46,10 @@ type Entry struct {
 	Time time.Time
 }
 
+func (m Entry) IsDir() bool {
+	return m.Type == EntryTypeFolder
+}
+
 // Response represents a data-connection
 type Response struct {
 	conn   net.Conn
@@ -62,6 +67,15 @@ func Dial(addr string) (*ServerConn, error) {
 	return DialTimeout(addr, 0)
 }
 
+// Dial a ftps server with implicit TLS
+func DialImplicitTLS(addr string, config *tls.Config) (*ServerConn, error) {
+	tconn, err := tls.Dial("tcp", addr, config)
+	if err != nil {
+		return nil, err
+	}
+	return dialServer(tconn, 0)
+}
+
 // DialTimeout initializes the connection to the specified ftp server address.
 //
 // It is generally followed by a call to Login() as most FTP commands require
@@ -71,7 +85,10 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	if err != nil {
 		return nil, err
 	}
+	return dialServer(tconn, timeout)
+}
 
+func dialServer(tconn net.Conn, timeout time.Duration) (*ServerConn, error) {
 	// Use the resolved IP address in case addr contains a domain name
 	// If we use the domain name, we might not resolve to the same IP.
 	remoteAddr := tconn.RemoteAddr().String()
@@ -327,7 +344,6 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 		conn.Close()
 		return nil, &textproto.Error{Code: code, Msg: msg}
 	}
-
 	return conn, nil
 }
 
@@ -347,6 +363,23 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	}
 	if err = scanner.Err(); err != nil {
 		return entries, err
+	}
+	return
+}
+
+// Stat issues an MLST FTP command.
+func (c *ServerConn) Stat(path string) (entry *Entry, err error) {
+	_, msg, err := c.cmd(StatusRequestedFileActionOK, "MLST %s", path)
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(msg, "\n")
+	for _, line := range lines {
+		entry, err = parseRFC3659ListLine(strings.TrimSpace(line))
+		if err == nil {
+			return entry, err
+		}
 	}
 	return
 }

@@ -6,6 +6,7 @@ go:
   - 1.8.1
 env:
   - FTP_SERVER=vsftpd
+  - FTP_SERVER=vsftpd_implicit_tls
   - FTP_SERVER=proftpd
 before_install:
 - sudo $TRAVIS_BUILD_DIR/.travis/prepare.sh "$FTP_SERVER"
