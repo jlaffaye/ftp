@@ -22,7 +22,11 @@ func TestConnEPSV(t *testing.T) {
 	testConn(t, false)
 }
 
-func testConn(t *testing.T, disableEPSV bool) {
+func TestConnWithCLNT(t *testing.T) {
+	testConn(t, true, true)
+}
+
+func testConn(t *testing.T, disableEPSV bool, CLNTOption ...bool) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
@@ -35,6 +39,10 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if disableEPSV {
 		delete(c.features, "EPSV")
 		c.DisableEPSV = true
+	}
+
+	if len(CLNTOption) > 0 {
+		c.CLNTCommand = true
 	}
 
 	err = c.Login("anonymous", "anonymous")
