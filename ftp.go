@@ -30,6 +30,10 @@ type ServerConn struct {
 	// Do not use EPSV mode
 	DisableEPSV bool
 
+	// CLNTCommand Option [The CLNT command is used to identify the client software to the server.
+	// This command serves no functional purpose other than to provide information to the server.]
+	CLNTCommand bool
+
 	conn          *textproto.Conn
 	host          string
 	timeout       time.Duration
@@ -127,6 +131,12 @@ func (c *ServerConn) Login(user, password string) error {
 		}
 	default:
 		return errors.New(message)
+	}
+
+	if c.CLNTCommand {
+		if _, _, err = c.cmd(StatusCommandOK, "CLNT"); err != nil {
+			return err
+		}
 	}
 
 	// Switch to binary mode
