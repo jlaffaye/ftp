@@ -42,6 +42,16 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Fatal(err)
 	}
 
+	err = c.Binary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.SetUTF8()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = c.NoOp()
 	if err != nil {
 		t.Error(err)
@@ -214,6 +224,16 @@ func TestConnIPv6(t *testing.T) {
 	}
 
 	err = c.Login("anonymous", "anonymous")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Binary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.SetUTF8()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -128,17 +128,14 @@ func (c *ServerConn) Login(user, password string) error {
 	default:
 		return errors.New(message)
 	}
+	return nil
+}
 
+func (c *ServerConn) Binary() error {
 	// Switch to binary mode
-	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
+	if _, _, err := c.cmd(StatusCommandOK, "TYPE I"); err != nil {
 		return err
 	}
-
-	// Switch to UTF-8
-	if err := c.setUTF8(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -179,8 +176,8 @@ func (c *ServerConn) feat() error {
 	return nil
 }
 
-// setUTF8 issues an "OPTS UTF8 ON" command.
-func (c *ServerConn) setUTF8() error {
+// SetUTF8 issues an "OPTS UTF8 ON" command.
+func (c *ServerConn) SetUTF8() error {
 	if _, ok := c.features["UTF8"]; !ok {
 		return nil
 	}
