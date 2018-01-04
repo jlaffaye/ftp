@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -224,8 +225,8 @@ func (e *Entry) setSize(str string) (err error) {
 func (e *Entry) setTime(fields []string, now time.Time) (err error) {
 	if strings.Contains(fields[2], ":") { // contains time
 		thisYear, _, _ := now.Date()
-		timeStr := fields[1] + " " + fields[0] + " " + strconv.Itoa(thisYear)[2:4] + " " + fields[2] + " GMT"
-		e.Time, err = time.Parse("_2 Jan 06 15:04 MST", timeStr)
+		timeStr := fmt.Sprintf("%s %s %d %s GMT", fields[1], fields[0], thisYear, fields[2])
+		e.Time, err = time.Parse("_2 Jan 2006 15:04 MST", timeStr)
 
 		/*
 			On unix, `info ls` shows:
@@ -247,8 +248,8 @@ func (e *Entry) setTime(fields []string, now time.Time) (err error) {
 		if len(fields[2]) != 4 {
 			return errors.New("Invalid year format in time string")
 		}
-		timeStr := fields[1] + " " + fields[0] + " " + fields[2][2:4] + " 00:00 GMT"
-		e.Time, err = time.Parse("_2 Jan 06 15:04 MST", timeStr)
+		timeStr := fmt.Sprintf("%s %s %s 00:00 GMT", fields[1], fields[0], fields[2])
+		e.Time, err = time.Parse("_2 Jan 2006 15:04 MST", timeStr)
 	}
 	return
 }
