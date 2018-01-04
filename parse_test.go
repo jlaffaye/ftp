@@ -129,6 +129,9 @@ func TestSettime(t *testing.T) {
 
 		// previous year, otherwise it would be more than 6 months in the future
 		{"Sep 10 23:00", time.Date(previousYear, time.September, 10, 23, 0, 0, 0, time.UTC)},
+
+		// far in the future
+		{"Jan 23  2019", time.Date(2019, time.January, 23, 0, 0, 0, 0, time.UTC)},
 	}
 
 	for _, test := range tests {
