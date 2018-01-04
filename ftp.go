@@ -350,14 +350,14 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	var cmd string
-	var parseFunc func(string) (*Entry, error)
+	var parser parseFunc
 
 	if c.mlstSupported {
 		cmd = "MLSD"
-		parseFunc = parseRFC3659ListLine
+		parser = parseRFC3659ListLine
 	} else {
 		cmd = "LIST"
-		parseFunc = parseListLine
+		parser = parseListLine
 	}
 
 	conn, err := c.cmdDataConnFrom(0, "%s %s", cmd, path)
@@ -369,8 +369,9 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	defer r.Close()
 
 	scanner := bufio.NewScanner(r)
+	now := time.Now()
 	for scanner.Scan() {
-		entry, err := parseFunc(scanner.Text())
+		entry, err := parser(scanner.Text(), now)
 		if err == nil {
 			entries = append(entries, entry)
 		}

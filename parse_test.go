@@ -1,11 +1,18 @@
 package ftp
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
 
-var thisYear, _, _ = time.Now().Date()
+var (
+	// now is the current time for all tests
+	now = time.Date(2017, time.March, 10, 23, 0, 0, 0, time.UTC)
+
+	thisYear, _, _ = now.Date()
+	previousYear   = thisYear - 1
+)
 
 type line struct {
 	line      string
@@ -36,7 +43,7 @@ var listTests = []line{
 
 	// Microsoft's FTP servers for Windows
 	{"----------   1 owner    group         1803128 Jul 10 10:18 ls-lR.Z", "ls-lR.Z", 1803128, EntryTypeFile, time.Date(thisYear, time.July, 10, 10, 18, 0, 0, time.UTC)},
-	{"d---------   1 owner    group               0 May  9 19:45 Softlib", "Softlib", 0, EntryTypeFolder, time.Date(thisYear, time.May, 9, 19, 45, 0, 0, time.UTC)},
+	{"d---------   1 owner    group               0 Nov  9 19:45 Softlib", "Softlib", 0, EntryTypeFolder, time.Date(previousYear, time.November, 9, 19, 45, 0, 0, time.UTC)},
 
 	// WFTPD for MSDOS
 	{"-rwxrwxrwx   1 noone    nogroup      322 Aug 19  1996 message.ftp", "message.ftp", 322, EntryTypeFile, time.Date(1996, time.August, 19, 0, 0, 0, 0, time.UTC)},
@@ -77,7 +84,7 @@ var listTestsFail = []unsupportedLine{
 
 func TestParseValidListLine(t *testing.T) {
 	for _, lt := range listTests {
-		entry, err := parseListLine(lt.line)
+		entry, err := parseListLine(lt.line, now)
 		if err != nil {
 			t.Errorf("parseListLine(%v) returned err = %v", lt.line, err)
 			continue
@@ -91,7 +98,7 @@ func TestParseValidListLine(t *testing.T) {
 		if entry.Size != lt.size {
 			t.Errorf("parseListLine(%v).Size = %v, want %v", lt.line, entry.Size, lt.size)
 		}
-		if entry.Time.Unix() != lt.time.Unix() {
+		if !entry.Time.Equal(lt.time) {
 			t.Errorf("parseListLine(%v).Time = %v, want %v", lt.line, entry.Time, lt.time)
 		}
 	}
@@ -99,12 +106,37 @@ func TestParseValidListLine(t *testing.T) {
 
 func TestParseUnsupportedListLine(t *testing.T) {
 	for _, lt := range listTestsFail {
-		_, err := parseListLine(lt.line)
+		_, err := parseListLine(lt.line, now)
 		if err == nil {
 			t.Errorf("parseListLine(%v) expected to fail", lt.line)
 		}
 		if err.Error() != lt.err {
 			t.Errorf("parseListLine(%v) expected to fail with error: '%s'; was: '%s'", lt.line, lt.err, err.Error())
+		}
+	}
+}
+
+func TestSettime(t *testing.T) {
+	tests := []struct {
+		line     string
+		expected time.Time
+	}{
+		// this year, in the past
+		{"Feb 10 23:00", time.Date(thisYear, time.February, 10, 23, 0, 0, 0, time.UTC)},
+
+		// this year, less than six months in the future
+		{"Sep 10 22:59", time.Date(thisYear, time.September, 10, 22, 59, 0, 0, time.UTC)},
+
+		// previous year, otherwise it would be more than 6 months in the future
+		{"Sep 10 23:00", time.Date(previousYear, time.September, 10, 23, 0, 0, 0, time.UTC)},
+	}
+
+	for _, test := range tests {
+		entry := &Entry{}
+		entry.setTime(strings.Fields(test.line), now)
+
+		if !entry.Time.Equal(test.expected) {
+			t.Errorf("setTime(%v).Time = %v, want %v", test.line, entry.Time, test.expected)
 		}
 	}
 }
