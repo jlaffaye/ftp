@@ -131,11 +131,9 @@ func (c *ServerConn) Login(user, password string) error {
 	}
 
 	// Switch to UTF-8
-	if err := c.setUTF8(); err != nil {
-		return err
-	}
+	err = c.setUTF8()
 
-	return nil
+	return err
 }
 
 // feat issues a FEAT FTP command to list the additional commands supported by
