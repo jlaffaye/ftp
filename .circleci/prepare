@@ -1,0 +1,21 @@
+#!/bin/sh -e
+
+mkdir --mode 0777 -p /var/ftp/incoming
+chown root .circleci/*.conf
+
+DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::="--force-confdef" -qq install "$1"
+
+case "$1" in
+  proftpd)
+    proftpd --nodaemon --config "$(pwd)/.circleci/proftpd.conf" &
+    ;;
+  vsftpd)
+    mkdir -p /var/run/vsftpd/empty
+    vsftpd .circleci/vsftpd.conf &
+    ;;
+  *)
+    echo "unknown software: $1"
+    exit 1
+esac
+
+sleep 1
