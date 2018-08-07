@@ -184,13 +184,14 @@ func (c *ServerConn) setUTF8() error {
 	}
 
 	code, message, err := c.cmd(-1, "OPTS UTF8 ON")
-	// Workaround for FTP servers, that does not support this option.
-	if code == StatusBadArguments {
-		return nil
-	}
 	if err != nil {
 		return err
 	}
+
+        // Workaround for FTP servers, that does not support this option.
+        if code == StatusBadArguments {
+                return nil
+        }
 
 	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
 	// "202 UTF8 mode is always enabled. No need to send this command." when
