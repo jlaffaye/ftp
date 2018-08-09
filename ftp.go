@@ -66,7 +66,10 @@ func Dial(addr string) (*ServerConn, error) {
 	return DialTimeout(addr, 0)
 }
 
-// Dial a ftps server with implicit TLS
+// DialImplicitTLS initializes the connection to the specified ftp server with implicit TLS
+//
+// It is generally followed by a call to Login() as most FTP commands require
+// an authenticated user.
 func DialImplicitTLS(addr string, config *tls.Config) (*ServerConn, error) {
 	tconn, err := tls.Dial("tcp", addr, config)
 	if err != nil {
