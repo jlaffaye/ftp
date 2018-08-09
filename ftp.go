@@ -102,7 +102,7 @@ func dialServer(tconn net.Conn, timeout time.Duration) (*ServerConn, error) {
 		Location: time.UTC,
 	}
 
-	_, _, err = c.conn.ReadResponse(StatusReady)
+	_, _, err := c.conn.ReadResponse(StatusReady)
 	if err != nil {
 		c.Quit()
 		return nil, err
