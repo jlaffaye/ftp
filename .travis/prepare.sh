@@ -1,5 +1,5 @@
 #!/bin/sh -e
-
+sudo apt-get update
 mkdir --mode 0777 -p /var/ftp/incoming
 
 case "$1" in
