@@ -15,4 +15,5 @@ esac
 
 mkdir --mode 0777 -p /var/ftp/incoming
 
+apt-get update -qq
 apt-get install -qq "$1"
