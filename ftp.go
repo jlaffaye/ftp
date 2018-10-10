@@ -82,7 +82,7 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 }
 
 // DialWithDialer initializes the connection with the specified dialer at the specified addr
-// The providen Dialer can be a proxy
+// The Dialer can be a proxy
 func DialWithDialer(dialer Dialer, addr string, timeout time.Duration) (*ServerConn, error) {
 	tconn, err := dialer.Dial("tcp", addr)
 	if err != nil {
