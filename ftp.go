@@ -24,6 +24,11 @@ const (
 	EntryTypeLink
 )
 
+type Dialer interface {
+	// Dial connects to the given address.
+	Dial(network, addr string) (c net.Conn, err error)
+}
+
 // ServerConn represents the connection to a remote FTP server.
 // It should be protected from concurrent accesses.
 type ServerConn struct {
@@ -38,6 +43,7 @@ type ServerConn struct {
 	timeout       time.Duration
 	features      map[string]string
 	mlstSupported bool
+	dialer        Dialer
 }
 
 // Entry describes a file and is returned by List().
@@ -70,7 +76,14 @@ func Dial(addr string) (*ServerConn, error) {
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
-	tconn, err := net.DialTimeout("tcp", addr, timeout)
+	d := net.Dialer{Timeout: timeout}
+	return DialWithDialer(&d, addr, timeout)
+}
+
+// DialWithDialer initializes the connection with the specified dialer at the specified addr
+// The providen Dialer can be a proxy
+func DialWithDialer(dialer Dialer, addr string, timeout time.Duration) (*ServerConn, error) {
+	tconn, err := dialer.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +99,7 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 		host:     remoteAddr.IP.String(),
 		timeout:  timeout,
 		features: make(map[string]string),
+		dialer:   dialer,
 		Location: time.UTC,
 	}
 
@@ -188,10 +202,10 @@ func (c *ServerConn) setUTF8() error {
 		return err
 	}
 
-        // Workaround for FTP servers, that does not support this option.
-        if code == StatusBadArguments {
-                return nil
-        }
+	// Workaround for FTP servers, that does not support this option.
+	if code == StatusBadArguments {
+		return nil
+	}
 
 	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
 	// "202 UTF8 mode is always enabled. No need to send this command." when
@@ -290,7 +304,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 		return nil, err
 	}
 
-	return net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), c.timeout)
+	return c.dialer.Dial("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
