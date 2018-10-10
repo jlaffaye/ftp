@@ -24,6 +24,7 @@ const (
 	EntryTypeLink
 )
 
+// A Dialer is a means to establish a connection.
 type Dialer interface {
 	// Dial connects to the given address.
 	Dial(network, addr string) (c net.Conn, err error)
