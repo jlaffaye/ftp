@@ -26,13 +26,9 @@ const (
 
 // The different types of files to transfer
 const (
-	TransferTypeASCIINonPrint  = "TYPE A N"
-	TransferTypeASCIITelnet    = "TYPE A T"
-	TransferTypeASCIIASA       = "TYPE A C"
-	TransferTypeEBCDICNonPrint = "TYPE E N"
-	TransferTypeEBCDICTelnet   = "TYPE E T"
-	TransferTypeEBCDICASA      = "TYPE E C"
-	TransferTypeBinary         = "TYPE I"
+	TransferTypeASCII  = "TYPE A"
+	TransferTypeEBCDIC = "TYPE E"
+	TransferTypeBinary = "TYPE I"
 	// TransferTypeLocalFormat is left out because it requires an arbitrary second
 	// argument specifying the number of bits per byte on the local system
 )
@@ -151,10 +147,6 @@ func (c *ServerConn) Login(user, password string) error {
 //		E - EBCDIC text
 //		I - image (binary data)
 //		L - local format
-// For A and E, the second type character specifies how the text should be interpreted:
-//		N - Non-print (not destined for printing). Default, if second-type-character is omitted.
-//		T - Telnet format control (<CR>, <FF>, etc.)
-//		C - ASA Carriage Control
 // For L, the second-type-character specifies the number of bits per byte on
 // the local system, and may not be omitted
 func (c *ServerConn) SetTransferType(transferType string) error {

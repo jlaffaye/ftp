@@ -94,27 +94,11 @@ func TestMultiline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.SetTransferType(TransferTypeASCIINonPrint)
+	err = c.SetTransferType(TransferTypeASCII)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.SetTransferType(TransferTypeASCIITelnet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeASCIIASA)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICNonPrint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICTelnet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICASA)
+	err = c.SetTransferType(TransferTypeEBCDIC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +116,7 @@ func TestMultiline(t *testing.T) {
 	// Wait for the connection to close
 	mock.Wait()
 
-	expected := []string{"FEAT", "USER", "PASS", "TYPE", "QUIT"}
+	expected := []string{"FEAT", "USER", "PASS", "TYPE", "TYPE", "TYPE", "QUIT"}
 	if !reflect.DeepEqual(mock.commands, expected) {
 		t.Fatal("unexpected sequence of commands:", mock.commands, "expected:", expected)
 	}

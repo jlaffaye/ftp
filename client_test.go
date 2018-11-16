@@ -42,27 +42,11 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Fatal(err)
 	}
 
-	err = c.SetTransferType(TransferTypeASCIINonPrint)
+	err = c.SetTransferType(TransferTypeASCII)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.SetTransferType(TransferTypeASCIITelnet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeASCIIASA)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICNonPrint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICTelnet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICASA)
+	err = c.SetTransferType(TransferTypeEBCDIC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,27 +236,11 @@ func TestConnIPv6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = c.SetTransferType(TransferTypeASCIINonPrint)
+	err = c.SetTransferType(TransferTypeASCII)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.SetTransferType(TransferTypeASCIITelnet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeASCIIASA)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICNonPrint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICTelnet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDICASA)
+	err = c.SetTransferType(TransferTypeEBCDIC)
 	if err != nil {
 		t.Fatal(err)
 	}
