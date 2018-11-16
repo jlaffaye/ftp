@@ -166,7 +166,7 @@ func (c *ServerConn) SetTransferType(transferType string) error {
 // SetUTF8 sets UTF-8 encoding when exchanging pathnames
 func (c *ServerConn) SetUTF8() error {
 	// Switch to UTF-8
-	err = c.setUTF8()
+	err := c.setUTF8()
 	return err
 }
 
