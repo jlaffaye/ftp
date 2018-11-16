@@ -27,7 +27,6 @@ const (
 // The different types of files to transfer
 const (
 	TransferTypeASCII  = "TYPE A"
-	TransferTypeEBCDIC = "TYPE E"
 	TransferTypeBinary = "TYPE I"
 	// TransferTypeLocalFormat is left out because it requires an arbitrary second
 	// argument specifying the number of bits per byte on the local system
@@ -144,7 +143,6 @@ func (c *ServerConn) Login(user, password string) error {
 //
 // Accepts "TYPE <type-character> [<second-type-character>]", where type character can be one of:
 //		A - ASCII text
-//		E - EBCDIC text
 //		I - image (binary data)
 //		L - local format
 // For L, the second-type-character specifies the number of bits per byte on

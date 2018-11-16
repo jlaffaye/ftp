@@ -98,10 +98,6 @@ func TestMultiline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.SetTransferType(TransferTypeEBCDIC)
-	if err != nil {
-		t.Fatal(err)
-	}
 	err = c.SetTransferType(TransferTypeBinary)
 	if err != nil {
 		t.Fatal(err)

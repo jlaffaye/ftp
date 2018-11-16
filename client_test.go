@@ -46,10 +46,6 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.SetTransferType(TransferTypeEBCDIC)
-	if err != nil {
-		t.Fatal(err)
-	}
 	err = c.SetTransferType(TransferTypeBinary)
 	if err != nil {
 		t.Fatal(err)
@@ -237,10 +233,6 @@ func TestConnIPv6(t *testing.T) {
 	}
 
 	err = c.SetTransferType(TransferTypeASCII)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.SetTransferType(TransferTypeEBCDIC)
 	if err != nil {
 		t.Fatal(err)
 	}
