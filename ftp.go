@@ -24,6 +24,19 @@ const (
 	EntryTypeLink
 )
 
+// The different types of files to transfer
+const (
+	TransferTypeASCIINonPrint  = "TYPE A N"
+	TransferTypeASCIITelnet    = "TYPE A T"
+	TransferTypeASCIIASA       = "TYPE A C"
+	TransferTypeEBCDICNonPrint = "TYPE E N"
+	TransferTypeEBCDICTelnet   = "TYPE E T"
+	TransferTypeEBCDICASA      = "TYPE E C"
+	TransferTypeBinary         = "TYPE I"
+	// TransferTypeLocalFormat is left out because it requires an arbitrary second
+	// argument specifying the number of bits per byte on the local system
+)
+
 // ServerConn represents the connection to a remote FTP server.
 // It should be protected from concurrent accesses.
 type ServerConn struct {
@@ -128,15 +141,32 @@ func (c *ServerConn) Login(user, password string) error {
 	default:
 		return errors.New(message)
 	}
+	return nil
+}
 
+// SetTransferType sets the type of file to be transferred
+//
+// Accepts "TYPE <type-character> [<second-type-character>]", where type character can be one of:
+//		A - ASCII text
+//		E - EBCDIC text
+//		I - image (binary data)
+//		L - local format
+// For A and E, the second type character specifies how the text should be interpreted:
+//		N - Non-print (not destined for printing). Default, if second-type-character is omitted.
+//		T - Telnet format control (<CR>, <FF>, etc.)
+//		C - ASA Carriage Control
+// For L, the second-type-character specifies the number of bits per byte on
+// the local system, and may not be omitted
+func (c *ServerConn) SetTransferType(transferType string) error {
 	// Switch to binary mode
-	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
-		return err
-	}
+	_, _, err := c.cmd(StatusCommandOK, transferType)
+	return err
+}
 
+// SetUTF8 sets UTF-8 encoding when exchanging pathnames
+func (c *ServerConn) SetUTF8() error {
 	// Switch to UTF-8
 	err = c.setUTF8()
-
 	return err
 }
 
@@ -188,10 +218,10 @@ func (c *ServerConn) setUTF8() error {
 		return err
 	}
 
-        // Workaround for FTP servers, that does not support this option.
-        if code == StatusBadArguments {
-                return nil
-        }
+	// Workaround for FTP servers, that does not support this option.
+	if code == StatusBadArguments {
+		return nil
+	}
 
 	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
 	// "202 UTF8 mode is always enabled. No need to send this command." when
