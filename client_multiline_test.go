@@ -100,7 +100,7 @@ func TestMultiline(t *testing.T) {
 	// Wait for the connection to close
 	mock.Wait()
 
-	expected := []string{"FEAT", "USER", "PASS", "TYPE", "QUIT"}
+	expected := []string{"USER", "PASS", "TYPE", "FEAT", "QUIT"}
 	if !reflect.DeepEqual(mock.commands, expected) {
 		t.Fatal("unexpected sequence of commands:", mock.commands, "expected:", expected)
 	}
