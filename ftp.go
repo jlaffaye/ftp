@@ -95,16 +95,6 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 		return nil, err
 	}
 
-	err = c.feat()
-	if err != nil {
-		c.Quit()
-		return nil, err
-	}
-
-	if _, mlstSupported := c.features["MLST"]; mlstSupported {
-		c.mlstSupported = true
-	}
-
 	return c, nil
 }
 
@@ -132,6 +122,14 @@ func (c *ServerConn) Login(user, password string) error {
 	// Switch to binary mode
 	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
 		return err
+	}
+
+	// FEAT FTP command to list the additional commands supported by
+	// the remote FTP server.
+	err = c.feat()
+
+	if _, mlstSupported := c.features["MLST"]; mlstSupported {
+		c.mlstSupported = true
 	}
 
 	// Switch to UTF-8
@@ -188,10 +186,10 @@ func (c *ServerConn) setUTF8() error {
 		return err
 	}
 
-        // Workaround for FTP servers, that does not support this option.
-        if code == StatusBadArguments {
-                return nil
-        }
+	// Workaround for FTP servers, that does not support this option.
+	if code == StatusBadArguments {
+		return nil
+	}
 
 	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
 	// "202 UTF8 mode is always enabled. No need to send this command." when
