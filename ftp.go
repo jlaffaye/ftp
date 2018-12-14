@@ -6,6 +6,7 @@ package ftp
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
@@ -38,6 +39,7 @@ type ServerConn struct {
 	timeout       time.Duration
 	features      map[string]string
 	mlstSupported bool
+	getConnection connectionFn
 }
 
 // Entry describes a file and is returned by List().
@@ -70,10 +72,31 @@ func Dial(addr string) (*ServerConn, error) {
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
+	return DialTimeoutWithConnection(addr, timeout, GetConnection)
+}
+
+func GetConnection(addr string, port int, timeout time.Duration) (net.Conn, error) {
+	// contains port suffix?
+	portSuffix := fmt.Sprintf(":%d", port)
+	if port > 0 && !strings.Contains(addr, portSuffix) {
+		addr = addr + portSuffix
+	}
 	tconn, err := net.DialTimeout("tcp", addr, timeout)
 	if err != nil {
 		return nil, err
 	}
+	return tconn, nil
+}
+
+type connectionFn func(addr string, port int, timeout time.Duration) (net.Conn, error)
+
+// DialTimeout initializes the connection to the specified ftp server address. Over a custom connection.
+// This allows for example to upgrade to a TLS connection (for FTPS) or event proxy that over a SOCKS(5) proxy.
+//
+// It is generally followed by a call to Login() as most FTP commands require
+// an authenticated user.
+func DialTimeoutWithConnection(addr string, timeout time.Duration, getConnection connectionFn) (*ServerConn, error) {
+	tconn, err := getConnection(addr, -1, timeout)
 
 	// Use the resolved IP address in case addr contains a domain name
 	// If we use the domain name, we might not resolve to the same IP.
@@ -82,11 +105,12 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	conn := textproto.NewConn(tconn)
 
 	c := &ServerConn{
-		conn:     conn,
-		host:     remoteAddr.IP.String(),
-		timeout:  timeout,
-		features: make(map[string]string),
-		Location: time.UTC,
+		conn:          conn,
+		host:          remoteAddr.IP.String(),
+		timeout:       timeout,
+		features:      make(map[string]string),
+		Location:      time.UTC,
+		getConnection: getConnection,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)
@@ -188,10 +212,10 @@ func (c *ServerConn) setUTF8() error {
 		return err
 	}
 
-        // Workaround for FTP servers, that does not support this option.
-        if code == StatusBadArguments {
-                return nil
-        }
+	// Workaround for FTP servers, that does not support this option.
+	if code == StatusBadArguments {
+		return nil
+	}
 
 	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
 	// "202 UTF8 mode is always enabled. No need to send this command." when
@@ -289,8 +313,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), c.timeout)
+	return c.getConnection(host, port, c.timeout)
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
