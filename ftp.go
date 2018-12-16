@@ -39,7 +39,7 @@ type ServerConn struct {
 	timeout       time.Duration
 	features      map[string]string
 	mlstSupported bool
-	getConnection connectionFn
+	getConnection ConnectionFn
 }
 
 // Entry describes a file and is returned by List().
@@ -88,14 +88,14 @@ func GetConnection(addr string, port int, timeout time.Duration) (net.Conn, erro
 	return tconn, nil
 }
 
-type connectionFn func(addr string, port int, timeout time.Duration) (net.Conn, error)
+type ConnectionFn func(addr string, port int, timeout time.Duration) (net.Conn, error)
 
 // DialTimeout initializes the connection to the specified ftp server address. Over a custom connection.
 // This allows for example to upgrade to a TLS connection (for FTPS) or event proxy that over a SOCKS(5) proxy.
 //
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
-func DialTimeoutWithConnection(addr string, timeout time.Duration, getConnection connectionFn) (*ServerConn, error) {
+func DialTimeoutWithConnection(addr string, timeout time.Duration, getConnection ConnectionFn) (*ServerConn, error) {
 	tconn, err := getConnection(addr, -1, timeout)
 
 	// Use the resolved IP address in case addr contains a domain name
