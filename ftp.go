@@ -188,10 +188,10 @@ func (c *ServerConn) setUTF8() error {
 		return err
 	}
 
-        // Workaround for FTP servers, that does not support this option.
-        if code == StatusBadArguments {
-                return nil
-        }
+	// Workaround for FTP servers, that does not support this option.
+	if code == StatusBadArguments {
+		return nil
+	}
 
 	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
 	// "202 UTF8 mode is always enabled. No need to send this command." when
@@ -516,7 +516,12 @@ func (c *ServerConn) RemoveDirRecur(path string) error {
 	if err != nil {
 		return err
 	}
+
 	entries, err := c.List(currentDir)
+	if err != nil {
+		return err
+	}
+
 	for _, entry := range entries {
 		if entry.Name != ".." && entry.Name != "." {
 			if entry.Type == EntryTypeFolder {
