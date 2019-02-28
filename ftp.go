@@ -140,6 +140,38 @@ func (c *ServerConn) Login(user, password string) error {
 	return err
 }
 
+// ASCIIMode switches to ascii mode
+func (c *ServerConn) ASCIIMode() (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "TYPE A")
+	return
+}
+
+// SetRecFm sets record formatSwitch to ascii mode
+func (c *ServerConn) SetRecFm(format string) (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "SITE RECFM=%s", format)
+	return
+}
+
+// SetLrecl sets record length
+func (c *ServerConn) SetLrecl(length int) (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "SITE LRECL=%d", length)
+	return
+}
+
+// SetBlkSize sets block size
+func (c *ServerConn) SetBlkSize(size int) (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "SITE BLKSIZE=%d", size)
+	return
+}
+
+// SetSingleByteCharSet sets character set for outbound ftp commands (ie. GET).
+// For example, for single byte transfer, when a FTP GET command is issued,
+// the target file will contain the specified character set at the end of each record.
+func (c *ServerConn) SetSingleByteCharSet(charSet string) (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "SITE SBSENDEOL=%s", charSet)
+	return
+}
+
 // feat issues a FEAT FTP command to list the additional commands supported by
 // the remote FTP server.
 // FEAT is described in RFC 2389
