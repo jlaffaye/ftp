@@ -146,7 +146,7 @@ func (c *ServerConn) ASCIIMode() (err error) {
 	return
 }
 
-// SetRecFm sets record formatSwitch to ascii mode
+// SetRecFm sets record format
 func (c *ServerConn) SetRecFm(format string) (err error) {
 	_, _, err = c.cmd(StatusCommandOK, "SITE RECFM=%s", format)
 	return
@@ -166,7 +166,8 @@ func (c *ServerConn) SetBlkSize(size int) (err error) {
 
 // SetSingleByteCharSet sets character set for outbound ftp commands (ie. GET).
 // For example, for single byte transfer, when a FTP GET command is issued,
-// the target file will contain the specified character set at the end of each record.
+// the target file will contain the user-specified character set at the end
+// of each record.
 func (c *ServerConn) SetSingleByteCharSet(charSet string) (err error) {
 	_, _, err = c.cmd(StatusCommandOK, "SITE SBSENDEOL=%s", charSet)
 	return
