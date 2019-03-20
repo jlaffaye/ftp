@@ -164,6 +164,12 @@ func (c *ServerConn) SetBlkSize(size int) (err error) {
 	return
 }
 
+// TapeMode sets unit to write to tape
+func (c *ServerConn) TapeMode() (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "SITE UNIT=TAPE")
+	return
+}
+
 // SetSingleByteCharSet sets character set for outbound ftp commands (ie. GET).
 // For example, for single byte transfer, when a FTP GET command is issued,
 // the target file will contain the user-specified character set at the end
