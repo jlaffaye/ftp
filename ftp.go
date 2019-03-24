@@ -140,7 +140,8 @@ func (c *ServerConn) Login(user, password string) error {
 	return err
 }
 
-// ASCIIMode switches to ascii mode
+// ASCIIMode switches to ascii mode. In ftp terminal, issuing "ascii"
+// would execute the same command.
 func (c *ServerConn) ASCIIMode() (err error) {
 	_, _, err = c.cmd(StatusCommandOK, "TYPE A")
 	return
@@ -167,6 +168,13 @@ func (c *ServerConn) SetBlkSize(size int) (err error) {
 // TapeMode sets unit to write to tape
 func (c *ServerConn) TapeMode() (err error) {
 	_, _, err = c.cmd(StatusCommandOK, "SITE UNIT=TAPE")
+	return
+}
+
+// SetVolCount sets volume count for allocation of new data sets. Typically
+// used when writing data to tape.
+func (c *ServerConn) SetVolCount(count int) (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "SITE VCOUNT=%d", count)
 	return
 }
 
