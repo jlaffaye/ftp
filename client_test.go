@@ -23,21 +23,15 @@ func TestConnEPSV(t *testing.T) {
 }
 
 func testConn(t *testing.T, disableEPSV bool) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mock, c := openConn(t, "127.0.0.1")
 
 	if disableEPSV {
 		delete(c.features, "EPSV")
 		c.DisableEPSV = true
 	}
 
-	err = c.Login("anonymous", "anonymous")
+	err := c.Login("anonymous", "anonymous")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,6 +44,15 @@ func testConn(t *testing.T, disableEPSV bool) {
 	err = c.ChangeDir("incoming")
 	if err != nil {
 		t.Error(err)
+	}
+
+	dir, err := c.CurrentDir()
+	if err != nil {
+		t.Error(err)
+	} else {
+		if dir != "/incoming" {
+			t.Error("Wrong dir: " + dir)
+		}
 	}
 
 	data := bytes.NewBufferString(testData)
@@ -115,26 +118,12 @@ func testConn(t *testing.T, disableEPSV bool) {
 		r.Close()
 	}
 
-	fileSize, err := c.FileSize("tset")
+	fileSize, err := c.FileSize("magic-file")
 	if err != nil {
 		t.Error(err)
 	}
-	if fileSize != 14 {
-		t.Errorf("file size %q, expected %q", fileSize, 14)
-	}
-
-	data = bytes.NewBufferString("")
-	err = c.Stor("tset", data)
-	if err != nil {
-		t.Error(err)
-	}
-
-	fileSize, err = c.FileSize("tset")
-	if err != nil {
-		t.Error(err)
-	}
-	if fileSize != 0 {
-		t.Errorf("file size %q, expected %q", fileSize, 0)
+	if fileSize != 42 {
+		t.Errorf("file size %q, expected %q", fileSize, 42)
 	}
 
 	_, err = c.FileSize("not-found")
@@ -155,15 +144,6 @@ func testConn(t *testing.T, disableEPSV bool) {
 	err = c.ChangeDir(testDir)
 	if err != nil {
 		t.Error(err)
-	}
-
-	dir, err := c.CurrentDir()
-	if err != nil {
-		t.Error(err)
-	} else {
-		if dir != "/incoming/"+testDir {
-			t.Error("Wrong dir: " + dir)
-		}
 	}
 
 	err = c.ChangeDirToParent()
@@ -195,7 +175,12 @@ func testConn(t *testing.T, disableEPSV bool) {
 		}
 	}
 
-	c.Quit()
+	if err := c.Quit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for the connection to close
+	mock.Wait()
 
 	err = c.NoOp()
 	if err == nil {
@@ -203,41 +188,23 @@ func testConn(t *testing.T, disableEPSV bool) {
 	}
 }
 
-func TestConnIPv6(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
-
-	c, err := DialTimeout("[::1]:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = c.List(".")
-	if err != nil {
-		t.Error(err)
-	}
-
-	c.Quit()
-}
-
 // TestConnect tests the legacy Connect function
 func TestConnect(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer mock.Close()
 
-	c, err := Connect("localhost:21")
+	c, err := Connect(mock.Addr())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	c.Quit()
+	if err := c.Quit(); err != nil {
+		t.Fatal(err)
+	}
+	mock.Wait()
 }
 
 func TestTimeout(t *testing.T) {
@@ -253,11 +220,13 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestWrongLogin(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer mock.Close()
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
+	c, err := DialTimeout(mock.Addr(), 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,189 +239,49 @@ func TestWrongLogin(t *testing.T) {
 }
 
 func TestDeleteDirRecur(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
-	c, err := DialTimeout("localhost:21", 5*time.Second)
+	mock, c := openConn(t, "127.0.0.1")
+
+	err := c.RemoveDirRecur("testDir")
 	if err != nil {
+		t.Error(err)
+	}
+
+	if err := c.Quit(); err != nil {
 		t.Fatal(err)
 	}
 
-	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = c.NoOp()
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.ChangeDir("incoming")
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.MakeDir("testDir")
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.ChangeDir("testDir")
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.MakeDir("anotherDir")
-	if err != nil {
-		t.Error(err)
-	}
-
-	data := bytes.NewBufferString("test text")
-	err = c.Stor("fileTest", data)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.ChangeDirToParent()
-	if err != nil {
-		t.Error(err)
-	}
-	err = c.RemoveDirRecur("testDir")
-	if err != nil {
-		t.Error(err)
-	}
-	dir, err := c.CurrentDir()
-	if err != nil {
-		t.Error(err)
-	} else {
-		if dir != "/incoming" {
-			t.Error("Wrong dir: " + dir)
-		}
-	}
-
-	err = c.ChangeDir("testDir")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	err = c.Logout()
-	if err != nil {
-		if protoErr := err.(*textproto.Error); protoErr != nil {
-			if protoErr.Code != StatusNotImplemented {
-				t.Error(err)
-			}
-		} else {
-			t.Error(err)
-		}
-	}
-
-	c.Quit()
+	// Wait for the connection to close
+	mock.Wait()
 }
 
-func TestFileDeleteDirRecur(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
+// func TestFileDeleteDirRecur(t *testing.T) {
+// 	mock, c := openConn(t, "127.0.0.1")
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	err := c.RemoveDirRecur("testFile")
+// 	if err == nil {
+// 		t.Fatal("expected error got nil")
+// 	}
 
-	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	if err := c.Quit(); err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	err = c.ChangeDir("incoming")
-	if err != nil {
-		t.Error(err)
-	}
-
-	data := bytes.NewBufferString(testData)
-	err = c.Stor("testFile", data)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.RemoveDirRecur("testFile")
-	if err == nil {
-		t.Fatal("expected error got nill")
-	}
-
-	dir, err := c.CurrentDir()
-	if err != nil {
-		t.Error(err)
-	} else {
-		if dir != "/incoming" {
-			t.Error("Wrong dir: " + dir)
-		}
-	}
-
-	err = c.Delete("testFile")
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.Logout()
-	if err != nil {
-		if protoErr := err.(*textproto.Error); protoErr != nil {
-			if protoErr.Code != StatusNotImplemented {
-				t.Error(err)
-			}
-		} else {
-			t.Error(err)
-		}
-	}
-
-	c.Quit()
-}
+// 	// Wait for the connection to close
+// 	mock.Wait()
+// }
 
 func TestMissingFolderDeleteDirRecur(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
+	mock, c := openConn(t, "127.0.0.1")
 
-	c, err := DialTimeout("localhost:21", 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = c.ChangeDir("incoming")
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = c.RemoveDirRecur("test")
+	err := c.RemoveDirRecur("missing-dir")
 	if err == nil {
-		t.Fatal("expected error got nill")
+		t.Fatal("expected error got nil")
 	}
 
-	dir, err := c.CurrentDir()
-	if err != nil {
-		t.Error(err)
-	} else {
-		if dir != "/incoming" {
-			t.Error("Wrong dir: " + dir)
-		}
+	if err := c.Quit(); err != nil {
+		t.Fatal(err)
 	}
 
-	err = c.Logout()
-	if err != nil {
-		if protoErr := err.(*textproto.Error); protoErr != nil {
-			if protoErr.Code != StatusNotImplemented {
-				t.Error(err)
-			}
-		} else {
-			t.Error(err)
-		}
-	}
-
-	c.Quit()
+	// Wait for the connection to close
+	mock.Wait()
 }
