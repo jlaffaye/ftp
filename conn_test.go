@@ -285,14 +285,14 @@ func (mock *ftpMock) Close() {
 }
 
 // Helper to return a client connected to a mock server
-func openConn(t *testing.T, addr string) (*ftpMock, *ServerConn) {
+func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *ServerConn) {
 	mock, err := newFtpMock(t, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer mock.Close()
 
-	c, err := Dial(mock.Addr())
+	c, err := DialWithOptions(mock.Addr(), options...)
 	if err != nil {
 		t.Fatal(err)
 	}

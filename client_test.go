@@ -24,12 +24,7 @@ func TestConnEPSV(t *testing.T) {
 
 func testConn(t *testing.T, disableEPSV bool) {
 
-	mock, c := openConn(t, "127.0.0.1")
-
-	if disableEPSV {
-		delete(c.features, "EPSV")
-		c.DisableEPSV = true
-	}
+	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second), DialWithDisabledEPSV(disableEPSV))
 
 	err := c.Login("anonymous", "anonymous")
 	if err != nil {
