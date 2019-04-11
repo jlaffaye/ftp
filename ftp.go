@@ -27,7 +27,8 @@ const (
 )
 
 // ServerConn represents the connection to a remote FTP server.
-// It should be protected from concurrent accesses.
+// A single connection only supports one in-flight data connection.
+// It is not safe to be called concurrently.
 type ServerConn struct {
 	options *dialOptions
 	conn    *textproto.Conn
