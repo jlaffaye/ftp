@@ -53,6 +53,7 @@ type dialOptions struct {
 	conn        net.Conn
 	disableEPSV bool
 	location    *time.Location
+	debugOutput io.Writer
 }
 
 // Entry describes a file and is returned by List().
@@ -100,10 +101,15 @@ func DialWithOptions(addr string, options ...DialOption) (*ServerConn, error) {
 	// If we use the domain name, we might not resolve to the same IP.
 	remoteAddr := tconn.RemoteAddr().(*net.TCPAddr)
 
+	var sourceConn io.ReadWriteCloser = tconn
+	if do.debugOutput != nil {
+		sourceConn = newDebugWrapper(tconn, do.debugOutput)
+	}
+
 	c := &ServerConn{
 		options:  do,
 		features: make(map[string]string),
-		conn:     textproto.NewConn(tconn),
+		conn:     textproto.NewConn(sourceConn),
 		host:     remoteAddr.IP.String(),
 	}
 
@@ -175,6 +181,14 @@ func DialWithContext(ctx context.Context) DialOption {
 func DialWithTLS(tlsConfig tls.Config) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.tlsConfig = tlsConfig
+	}}
+}
+
+// DialWithDebugOutput returns a DialOption that configures the ServerConn to write to the Writer
+// everything it reads from the server
+func DialWithDebugOutput(w io.Writer) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.debugOutput = w
 	}}
 }
 
