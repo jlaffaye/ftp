@@ -40,7 +40,7 @@ type ServerConn struct {
 	mlstSupported bool
 }
 
-// DialOption represents an option to start a new connection with DialWithOptions
+// DialOption represents an option to start a new connection with Dial
 type DialOption struct {
 	setup func(do *dialOptions)
 }
@@ -71,8 +71,8 @@ type Response struct {
 	closed bool
 }
 
-// DialWithOptions connects to the specified address with optinal options
-func DialWithOptions(addr string, options ...DialOption) (*ServerConn, error) {
+// Dial connects to the specified address with optinal options
+func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 	do := &dialOptions{}
 	for _, option := range options {
 		option.setup(do)
@@ -197,17 +197,12 @@ func Connect(addr string) (*ServerConn, error) {
 	return Dial(addr)
 }
 
-// Dial is like DialTimeout with no timeout
-func Dial(addr string) (*ServerConn, error) {
-	return DialTimeout(addr, 0)
-}
-
 // DialTimeout initializes the connection to the specified ftp server address.
 //
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
-	return DialWithOptions(addr, DialWithTimeout(timeout))
+	return Dial(addr, DialWithTimeout(timeout))
 }
 
 // Login authenticates the client with specified user and password.

@@ -16,7 +16,7 @@ go get -u github.com/jlaffaye/ftp
 ## Example ##
 
 ```go
-c, err := ftp.DialWithOptions("ftp.example.org:21", ftp.DialWithTimeout(5*time.Second))
+c, err := ftp.Dial("ftp.example.org:21", ftp.DialWithTimeout(5*time.Second))
 if err != nil {
     log.Fatal(err)
 }
