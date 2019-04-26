@@ -405,9 +405,9 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	if c.options.dialFunc != nil {
 		return c.options.dialFunc("tcp", addr)
-	} else {
-		return c.options.dialer.Dial("tcp", addr)
 	}
+
+	return c.options.dialer.Dial("tcp", addr)
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
