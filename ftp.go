@@ -201,6 +201,10 @@ func DialWithDebugOutput(w io.Writer) DialOption {
 
 // DialWithDialFunc returns a DialOption that configures the ServerConn to use the
 // specified function to establish both control and data connections
+//
+// If used together with the DialWithNetConn option, the DialWithNetConn
+// takes precedence for the control connection, while data connections will
+// be established using function specified with the DialWithDialFunc option
 func DialWithDialFunc(f func(network, address string) (net.Conn, error)) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.dialFunc = f
