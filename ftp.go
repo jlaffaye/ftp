@@ -54,6 +54,7 @@ type dialOptions struct {
 	disableEPSV bool
 	location    *time.Location
 	debugOutput io.Writer
+	dialFunc    func(network, address string) (net.Conn, error)
 }
 
 // Entry describes a file and is returned by List().
@@ -84,17 +85,23 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 
 	tconn := do.conn
 	if tconn == nil {
-		ctx := do.context
+		var err error
 
-		if ctx == nil {
-			ctx = context.Background()
+		if do.dialFunc != nil {
+			tconn, err = do.dialFunc("tcp", addr)
+		} else {
+			ctx := do.context
+
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			tconn, err = do.dialer.DialContext(ctx, "tcp", addr)
 		}
 
-		conn, err := do.dialer.DialContext(ctx, "tcp", addr)
 		if err != nil {
 			return nil, err
 		}
-		tconn = conn
 	}
 
 	// Use the resolved IP address in case addr contains a domain name
@@ -189,6 +196,14 @@ func DialWithTLS(tlsConfig tls.Config) DialOption {
 func DialWithDebugOutput(w io.Writer) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.debugOutput = w
+	}}
+}
+
+// DialWithDialFunc returns a DialOption that configures the ServerConn to use the
+// specified function to establish both control and data connections
+func DialWithDialFunc(f func(network, address string) (net.Conn, error)) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.dialFunc = f
 	}}
 }
 
@@ -387,7 +402,12 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 		return nil, err
 	}
 
-	return c.options.dialer.Dial("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	if c.options.dialFunc != nil {
+		return c.options.dialFunc("tcp", addr)
+	} else {
+		return c.options.dialer.Dial("tcp", addr)
+	}
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
