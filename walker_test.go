@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,7 +67,7 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 	result := w.Step()
 
 	assert.Equal(t, true, result, "Result should return true")
-	assert.Equal(t, 1, len(w.stack))
+	assert.Equal(t, 0, len(w.stack))
 	assert.Equal(t, true, w.descend)
 }
 
@@ -136,12 +137,37 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 	assert.Equal(t, "file", w.cur.entry.Name)
 }
 
-func TestErrorsFromListAreHandledCorrectly(t *testing.T) {
-	//Get error
-	//Check w.cur.err
-	//Check stack
-}
-
 func TestStackIsPopulatedCorrectly(t *testing.T) {
-	//Check things are added to the stack correcty
+
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	c, cErr := Connect(mock.Addr())
+	if cErr != nil {
+		t.Fatal(err)
+	}
+
+	w := Walker{
+		cur: item{
+			path: "/root",
+			entry: Entry{
+				Name: "root",
+				Size: 123,
+				Time: time.Now(),
+				Type: EntryTypeFolder,
+			},
+		},
+		serverConn: c,
+	}
+
+	w.descend = true
+
+	w.Step()
+
+	assert.Equal(t, 0, len(w.stack))
+	assert.Equal(t, "lo", w.cur.entry.Name)
+	assert.Equal(t, true, strings.HasSuffix(w.cur.path, "/"))
 }
