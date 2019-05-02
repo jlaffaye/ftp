@@ -9,6 +9,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestWalkReturnsCorrectlyPopulatedWalker(t *testing.T) {
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	c, cErr := Connect(mock.Addr())
+	if cErr != nil {
+		t.Fatal(err)
+	}
+
+	w := c.Walk("root")
+
+	assert.Equal(t, "root/", w.root)
+	assert.Equal(t, &c, &w.serverConn)
+}
+
 func TestFieldsReturnCorrectData(t *testing.T) {
 	w := Walker{
 		cur: item{
