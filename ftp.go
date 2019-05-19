@@ -90,7 +90,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		if do.dialFunc != nil {
 			tconn, err = do.dialFunc("tcp", addr)
 		} else if do.tlsConfig != nil {
-			tconn, err = tls.Dial("tcp", addr, do.tlsConfig)
+			tconn, err = tls.DialWithDialer(&do.dialer , "tcp", addr, do.tlsConfig)
 		} else {
 			ctx := do.context
 
@@ -424,7 +424,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	}
 
 	if c.options.tlsConfig != nil {
-		conn, err := net.Dial("tcp", addr)
+		conn, err := c.options.dialer.Dial("tcp", addr)
 		if err != nil {
 			return nil, err
 		}
