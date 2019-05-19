@@ -49,7 +49,7 @@ type DialOption struct {
 type dialOptions struct {
 	context     context.Context
 	dialer      net.Dialer
-	tlsConfig   tls.Config
+	tlsConfig   *tls.Config
 	conn        net.Conn
 	disableEPSV bool
 	location    *time.Location
@@ -89,6 +89,8 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 
 		if do.dialFunc != nil {
 			tconn, err = do.dialFunc("tcp", addr)
+		} else if do.tlsConfig != nil {
+			tconn, err = tls.DialWithDialer(&do.dialer , "tcp", addr, do.tlsConfig)
 		} else {
 			ctx := do.context
 
@@ -185,7 +187,11 @@ func DialWithContext(ctx context.Context) DialOption {
 }
 
 // DialWithTLS returns a DialOption that configures the ServerConn with specified TLS config
-func DialWithTLS(tlsConfig tls.Config) DialOption {
+// 
+// If called together with the DialWithDialFunc option, the DialWithDialFunc function
+// will be used when dialing new connections but regardless of the function,
+// the connection will be treated as a TLS connection.
+func DialWithTLS(tlsConfig *tls.Config) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.tlsConfig = tlsConfig
 	}}
@@ -252,6 +258,12 @@ func (c *ServerConn) Login(user, password string) error {
 
 	// Switch to UTF-8
 	err = c.setUTF8()
+
+	// If using implicit TLS, make data connections also use TLS
+	if c.options.tlsConfig != nil {
+		c.cmd(StatusCommandOK, "PBSZ 0")
+		c.cmd(StatusCommandOK, "PROT P")
+	}
 
 	return err
 }
@@ -409,6 +421,14 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	if c.options.dialFunc != nil {
 		return c.options.dialFunc("tcp", addr)
+	}
+
+	if c.options.tlsConfig != nil {
+		conn, err := c.options.dialer.Dial("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		return tls.Client(conn, c.options.tlsConfig), err
 	}
 
 	return c.options.dialer.Dial("tcp", addr)
