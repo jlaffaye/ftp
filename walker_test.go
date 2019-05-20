@@ -82,7 +82,7 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 
 	w.SkipDir()
 
-	result := w.Step()
+	result := w.Next()
 
 	assert.Equal(t, true, result, "Result should return true")
 	assert.Equal(t, 0, len(w.stack))
@@ -106,7 +106,7 @@ func TestEmptyStackReturnsFalse(t *testing.T) {
 
 	w.SkipDir()
 
-	result := w.Step()
+	result := w.Next()
 
 	assert.Equal(t, false, result, "Result should return false")
 }
@@ -147,8 +147,8 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 		},
 	}
 
-	result := w.Step()
-	result = w.Step()
+	result := w.Next()
+	result = w.Next()
 
 	assert.Equal(t, true, result, "Result should return true")
 	assert.Equal(t, 0, len(w.stack))
@@ -183,7 +183,7 @@ func TestStackIsPopulatedCorrectly(t *testing.T) {
 
 	w.descend = true
 
-	w.Step()
+	w.Next()
 
 	assert.Equal(t, 0, len(w.stack))
 	assert.Equal(t, "lo", w.cur.entry.Name)

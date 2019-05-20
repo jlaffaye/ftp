@@ -20,10 +20,10 @@ type item struct {
 	err   error
 }
 
-// Step advances the Walker to the next file or directory,
+// Next advances the Walker to the next file or directory,
 // which will then be available through the Path, Stat, and Err methods.
 // It returns false when the walk stops at the end of the tree.
-func (w *Walker) Step() bool {
+func (w *Walker) Next() bool {
 	if w.descend && w.cur.err == nil && w.cur.entry.Type == EntryTypeFolder {
 		list, err := w.serverConn.List(w.cur.path)
 		if err != nil {
@@ -57,12 +57,12 @@ func (w *Walker) Step() bool {
 	return true
 }
 
-//SkipDir tells the step function to skip the currently processed directory
+//SkipDir tells the Next function to skip the currently processed directory
 func (w *Walker) SkipDir() {
 	w.descend = false
 }
 
-//Err returns the error, if any, for the most recent attempt by Step to
+//Err returns the error, if any, for the most recent attempt by Next to
 //visit a file or a directory. If a directory has an error, the walker
 //will not descend in that directory
 func (w *Walker) Err() error {
@@ -76,7 +76,7 @@ func (w *Walker) Stat() Entry {
 }
 
 // Path returns the path to the most recent file or directory
-// visited by a call to Step. It contains the argument to Walk
+// visited by a call to Next. It contains the argument to Walk
 // as a prefix; that is, if Walk is called with "dir", which is
 // a directory containing the file "a", Path will return "dir/a".
 func (w *Walker) Path() string {
