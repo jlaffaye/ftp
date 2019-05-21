@@ -1,6 +1,7 @@
 package ftp
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +69,9 @@ var listTests = []line{
 
 	// Odd link count from hostedftp.com
 	{"-r--------   0 user group     65222236 Feb 24 00:39 RegularFile", "RegularFile", 65222236, EntryTypeFile, newTime(thisYear, time.February, 24, 0, 39)},
+
+	// Line with ACL persmissions
+	{"-rwxrw-r--+  1 521      101         2080 May 21 10:53 data.csv", "data.csv", 2080, EntryTypeFile, newTime(thisYear, time.May, 21, 10, 53)},
 }
 
 // Not supported, we expect a specific error message
@@ -84,35 +88,41 @@ var listTestsFail = []unsupportedLine{
 
 func TestParseValidListLine(t *testing.T) {
 	for _, lt := range listTests {
-		entry, err := parseListLine(lt.line, now, time.UTC)
-		if err != nil {
-			t.Errorf("parseListLine(%v) returned err = %v", lt.line, err)
-			continue
-		}
-		if entry.Name != lt.name {
-			t.Errorf("parseListLine(%v).Name = '%v', want '%v'", lt.line, entry.Name, lt.name)
-		}
-		if entry.Type != lt.entryType {
-			t.Errorf("parseListLine(%v).EntryType = %v, want %v", lt.line, entry.Type, lt.entryType)
-		}
-		if entry.Size != lt.size {
-			t.Errorf("parseListLine(%v).Size = %v, want %v", lt.line, entry.Size, lt.size)
-		}
-		if !entry.Time.Equal(lt.time) {
-			t.Errorf("parseListLine(%v).Time = %v, want %v", lt.line, entry.Time, lt.time)
-		}
+		t.Run(fmt.Sprintf("parseListLine(%v)", lt.line), func(t *testing.T) {
+
+			entry, err := parseListLine(lt.line, now, time.UTC)
+			if err != nil {
+				t.Errorf("returned err = %v", err)
+				return
+			}
+			if entry.Name != lt.name {
+				t.Errorf("Name = '%v', want '%v'", entry.Name, lt.name)
+			}
+			if entry.Type != lt.entryType {
+				t.Errorf("EntryType = %v, want %v", entry.Type, lt.entryType)
+			}
+			if entry.Size != lt.size {
+				t.Errorf("Size = %v, want %v", entry.Size, lt.size)
+			}
+			if !entry.Time.Equal(lt.time) {
+				t.Errorf("Time = %v, want %v", entry.Time, lt.time)
+			}
+		})
 	}
 }
 
 func TestParseUnsupportedListLine(t *testing.T) {
 	for _, lt := range listTestsFail {
-		_, err := parseListLine(lt.line, now, time.UTC)
-		if err == nil {
-			t.Errorf("parseListLine(%v) expected to fail", lt.line)
-		}
-		if err != lt.err {
-			t.Errorf("parseListLine(%v) expected to fail with error: '%s'; was: '%s'", lt.line, lt.err.Error(), err.Error())
-		}
+		t.Run(fmt.Sprintf("parseListLine(%v)", lt.line), func(t *testing.T) {
+
+			_, err := parseListLine(lt.line, now, time.UTC)
+			if err == nil {
+				t.Error("expected to fail")
+			}
+			if err != lt.err {
+				t.Errorf("expected to fail with error: '%s'; was: '%s'", lt.err.Error(), err.Error())
+			}
+		})
 	}
 }
 
