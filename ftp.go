@@ -122,6 +122,10 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		host:     remoteAddr.IP.String(),
 	}
 
+	if do.dialer.Timeout > 0 {
+		tconn.SetDeadline(time.Now().Add(do.dialer.Timeout))
+	}
+
 	_, _, err := c.conn.ReadResponse(StatusReady)
 	if err != nil {
 		c.Quit()
