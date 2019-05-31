@@ -307,7 +307,7 @@ func (c *ServerConn) feat() error {
 
 // setUTF8 issues an "OPTS UTF8 ON" command.
 func (c *ServerConn) setUTF8() error {
-	if _, ok := c.features["UTF8"]; !ok {
+	if _, ok := c.features["UTF8"]; ok {
 		return nil
 	}
 
