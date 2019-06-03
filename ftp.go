@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -39,6 +40,8 @@ type ServerConn struct {
 	skipEPSV      bool
 	mlstSupported bool
 }
+
+var defaultConnectTimeout = 1 * time.Minute
 
 // DialOption represents an option to start a new connection with Dial
 type DialOption struct {
@@ -90,7 +93,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		if do.dialFunc != nil {
 			tconn, err = do.dialFunc("tcp", addr)
 		} else if do.tlsConfig != nil {
-			tconn, err = tls.DialWithDialer(&do.dialer , "tcp", addr, do.tlsConfig)
+			tconn, err = tls.DialWithDialer(&do.dialer, "tcp", addr, do.tlsConfig)
 		} else {
 			ctx := do.context
 
@@ -122,20 +125,38 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		host:     remoteAddr.IP.String(),
 	}
 
-	if do.dialer.Timeout > 0 {
-		tconn.SetDeadline(time.Now().Add(do.dialer.Timeout))
-	}
+	errorChan := make(chan error, 1)
+	go func() {
+		// check if `StatusReady`
+		_, _, err := c.conn.ReadResponse(StatusReady)
+		if err != nil {
+			c.Quit()
+			errorChan <- err
+			return
+		}
 
-	_, _, err := c.conn.ReadResponse(StatusReady)
-	if err != nil {
-		c.Quit()
-		return nil, err
-	}
+		// get supported feature lists
+		err = c.feat()
+		if err != nil {
+			c.Quit()
+			errorChan <- err
+			return
+		}
 
-	err = c.feat()
-	if err != nil {
-		c.Quit()
-		return nil, err
+		errorChan <- nil
+	}()
+
+	timeout := do.dialer.Timeout
+	if timeout <= 0 {
+		timeout = defaultConnectTimeout
+	}
+	select {
+	case <-time.After(timeout):
+		return nil, syscall.ETIMEDOUT
+	case err := <-errorChan:
+		if nil != err {
+			return nil, err
+		}
 	}
 
 	if _, mlstSupported := c.features["MLST"]; mlstSupported {
@@ -191,7 +212,7 @@ func DialWithContext(ctx context.Context) DialOption {
 }
 
 // DialWithTLS returns a DialOption that configures the ServerConn with specified TLS config
-// 
+//
 // If called together with the DialWithDialFunc option, the DialWithDialFunc function
 // will be used when dialing new connections but regardless of the function,
 // the connection will be treated as a TLS connection.
