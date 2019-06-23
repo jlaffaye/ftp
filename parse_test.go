@@ -23,6 +23,12 @@ type line struct {
 	time      time.Time
 }
 
+type symlinkLine struct {
+	line   string
+	name   string
+	target string
+}
+
 type unsupportedLine struct {
 	line string
 	err  error
@@ -35,7 +41,7 @@ var listTests = []line{
 	{"-rw-r--r--   1 marketwired marketwired    12016 Mar 16  2016 2016031611G087802-001.newsml", "2016031611G087802-001.newsml", 12016, EntryTypeFile, newTime(2016, time.March, 16)},
 
 	{"-rwxr-xr-x    3 110      1002            1234567 Dec 02  2009 fileName", "fileName", 1234567, EntryTypeFile, newTime(2009, time.December, 2)},
-	{"lrwxrwxrwx   1 root     other          7 Jan 25 00:17 bin -> usr/bin", "bin -> usr/bin", 0, EntryTypeLink, newTime(thisYear, time.January, 25, 0, 17)},
+	{"lrwxrwxrwx   1 root     other          7 Jan 25 00:17 bin -> usr/bin", "bin", 0, EntryTypeLink, newTime(thisYear, time.January, 25, 0, 17)},
 
 	// Another ls style
 	{"drwxr-xr-x               folder        0 Aug 15 05:49 !!!-Tipp des Haus!", "!!!-Tipp des Haus!", 0, EntryTypeFolder, newTime(thisYear, time.August, 15, 5, 49)},
@@ -74,6 +80,11 @@ var listTests = []line{
 	{"-rwxrw-r--+  1 521      101         2080 May 21 10:53 data.csv", "data.csv", 2080, EntryTypeFile, newTime(thisYear, time.May, 21, 10, 53)},
 }
 
+var listTestsSymlink = []symlinkLine{
+	{"lrwxrwxrwx   1 root     other          7 Jan 25 00:17 bin -> usr/bin", "bin", "usr/bin"},
+	{"lrwxrwxrwx    1 0        1001           27 Jul 07  2017 R-3.4.0.pkg -> el-capitan/base/R-3.4.0.pkg", "R-3.4.0.pkg", "el-capitan/base/R-3.4.0.pkg"},
+}
+
 // Not supported, we expect a specific error message
 var listTestsFail = []unsupportedLine{
 	{"d [R----F--] supervisor            512       Jan 16 18:53 login", errUnsupportedListLine},
@@ -108,6 +119,25 @@ func TestParseValidListLine(t *testing.T) {
 				t.Errorf("Time = %v, want %v", entry.Time, lt.time)
 			}
 		})
+	}
+}
+
+func TestParseSymlinks(t *testing.T) {
+	for _, lt := range listTestsSymlink {
+		entry, err := parseListLine(lt.line, now, time.UTC)
+		if err != nil {
+			t.Errorf("parseListLine(%v) returned err = %v", lt.line, err)
+			continue
+		}
+		if entry.Name != lt.name {
+			t.Errorf("parseListLine(%v).Name = '%v', want '%v'", lt.line, entry.Name, lt.name)
+		}
+		if entry.Target != lt.target {
+			t.Errorf("parseListLine(%v).Target = '%v', want '%v'", lt.line, entry.Target, lt.target)
+		}
+		if entry.Type != EntryTypeLink {
+			t.Errorf("parseListLine(%v).EntryType = %v, want EntryTypeLink", lt.line, entry.Type)
+		}
 	}
 }
 

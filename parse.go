@@ -135,6 +135,12 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 		e.Type = EntryTypeFolder
 	case 'l':
 		e.Type = EntryTypeLink
+
+		// Split link name and target
+		if i := strings.Index(e.Name, " -> "); i > 0 {
+			e.Target = e.Name[i+4:]
+			e.Name = e.Name[:i]
+		}
 	default:
 		return nil, errUnknownListEntryType
 	}
