@@ -46,7 +46,7 @@ if err != nil {
 ## Read a file example ##
 
 ```go
-r, err := c.Retr("tset")
+r, err := c.Retr("test-file.txt")
 if err != nil {
 	panic(err)
 } else {
