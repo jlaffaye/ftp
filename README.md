@@ -49,8 +49,8 @@ if err != nil {
 r, err := c.Retr("test-file.txt")
 if err != nil {
 	panic(err)
-} else {
-    buf, err := ioutil.ReadAll(r)
-    println(string(buf))
 }
+
+buf, err := ioutil.ReadAll(r)
+println(string(buf))
 ```
