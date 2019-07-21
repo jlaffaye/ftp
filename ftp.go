@@ -73,7 +73,7 @@ type Response struct {
 	closed bool
 }
 
-// Dial connects to the specified address with optinal options
+// Dial connects to the specified address with optional options
 func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 	do := &dialOptions{}
 	for _, option := range options {
@@ -172,7 +172,7 @@ func DialWithDisabledEPSV(disabled bool) DialOption {
 }
 
 // DialWithLocation returns a DialOption that configures the ServerConn with specified time.Location
-// The lococation is used to parse the dates sent by the server which are in server's timezone
+// The location is used to parse the dates sent by the server which are in server's timezone
 func DialWithLocation(location *time.Location) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.location = location
