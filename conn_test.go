@@ -333,3 +333,22 @@ func TestConn6(t *testing.T) {
 	mock, c := openConn(t, "[::1]")
 	closeConn(t, mock, c, nil)
 }
+
+func TestResolveAddr(t *testing.T) {
+	addr, remoteAddr, err := resolveAddr("localhost:1234")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedAddr := "[::1]:1234"
+	if addr != expectedAddr {
+		t.Fatalf("Expected %v, got: %v", expectedAddr, addr)
+	}
+
+	expectedRemoteAddr := net.TCPAddr{IP: net.IPv6loopback, Port: 1234, Zone: ""}
+	if !expectedRemoteAddr.IP.Equal(remoteAddr.IP) ||
+		expectedRemoteAddr.Port != remoteAddr.Port ||
+		expectedRemoteAddr.Zone != remoteAddr.Zone {
+		t.Fatalf("Expected %v, got: %v", expectedRemoteAddr, remoteAddr)
+	}
+}

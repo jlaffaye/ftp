@@ -8,9 +8,11 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"golang.org/x/net/proxy"
 	"io"
 	"net"
 	"net/textproto"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -53,6 +55,7 @@ type dialOptions struct {
 	conn        net.Conn
 	disableEPSV bool
 	location    *time.Location
+	socksProxy  string
 	debugOutput io.Writer
 	dialFunc    func(network, address string) (net.Conn, error)
 }
@@ -84,11 +87,29 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		do.location = time.UTC
 	}
 
+	// Use the resolved IP address in case addr contains a domain name
+	// If we use the domain name, we might not resolve to the same IP.
+	addr, remoteAddr, err := resolveAddr(addr)
+	if err != nil {
+		return nil, err
+	}
+
 	tconn := do.conn
 	if tconn == nil {
 		var err error
 
-		if do.dialFunc != nil {
+		socksProxy := getSocksProxy(do)
+		if len(socksProxy) > 0 {
+			socksDialer, err := proxy.SOCKS5("tcp", socksProxy, nil, proxy.Direct)
+			if err != nil {
+				return nil, err
+			}
+
+			tconn, err = socksDialer.Dial("tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+		} else if do.dialFunc != nil {
 			tconn, err = do.dialFunc("tcp", addr)
 		} else if do.tlsConfig != nil {
 			tconn, err = tls.DialWithDialer(&do.dialer, "tcp", addr, do.tlsConfig)
@@ -107,10 +128,6 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		}
 	}
 
-	// Use the resolved IP address in case addr contains a domain name
-	// If we use the domain name, we might not resolve to the same IP.
-	remoteAddr := tconn.RemoteAddr().(*net.TCPAddr)
-
 	var sourceConn io.ReadWriteCloser = tconn
 	if do.debugOutput != nil {
 		sourceConn = newDebugWrapper(tconn, do.debugOutput)
@@ -123,7 +140,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		host:     remoteAddr.IP.String(),
 	}
 
-	_, _, err := c.conn.ReadResponse(StatusReady)
+	_, _, err = c.conn.ReadResponse(StatusReady)
 	if err != nil {
 		c.Quit()
 		return nil, err
@@ -420,6 +437,17 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	}
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
+
+	socksProxy := getSocksProxy(c.options)
+	if len(socksProxy) > 0 {
+		socksDialer, err := proxy.SOCKS5("tcp", socksProxy, nil, proxy.Direct)
+		if err != nil {
+			return nil, err
+		}
+
+		return socksDialer.Dial("tcp", addr)
+	}
+
 	if c.options.dialFunc != nil {
 		return c.options.dialFunc("tcp", addr)
 	}
@@ -745,4 +773,30 @@ func (r *Response) Close() error {
 // SetDeadline sets the deadlines associated with the connection.
 func (r *Response) SetDeadline(t time.Time) error {
 	return r.conn.SetDeadline(t)
+}
+
+// Use the resolved IP address in case addr contains a domain name.
+// If we use the domain name, we might not resolve to the same IP.
+func resolveAddr(addr string) (string, *net.TCPAddr, error) {
+	host, port, _ := net.SplitHostPort(addr)
+	ip, err := net.LookupIP(host)
+	if err != nil {
+		return "", nil, err
+	}
+	addr = net.JoinHostPort(ip[0].String(), port)
+	remoteAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return addr, remoteAddr, err
+}
+
+// Get the SOCKSv5 proxy from options or the environment as a fallback.
+func getSocksProxy(options *dialOptions) string {
+	if len(options.socksProxy) > 0 {
+		return options.socksProxy
+	}
+
+	return os.Getenv("socks_proxy")
 }

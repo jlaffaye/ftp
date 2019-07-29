@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -182,6 +183,44 @@ func TestSettime(t *testing.T) {
 			t.Errorf("setTime(%v).Time = %v, want %v", test.line, entry.Time, test.expected)
 		}
 	}
+}
+
+func TestSocksGetProxy(t *testing.T) {
+	os.Setenv("socks_proxy", "")
+
+	tests := []struct {
+		options  *dialOptions
+		expected string
+	}{
+		// this year, in the past
+		{&dialOptions{}, ""},
+
+		// this year, less than six months in the future
+		{&dialOptions{socksProxy: "localhost:1234"}, "localhost:1234"},
+	}
+
+	for _, test := range tests {
+		proxy := getSocksProxy(test.options)
+		if proxy != test.expected {
+			t.Errorf("getSocksProxy(%v) = %v, want %v", test.options.socksProxy, proxy, test.expected)
+		}
+	}
+
+	// test environment variable
+	os.Setenv("socks_proxy", "localhost:4321")
+	proxy := getSocksProxy(&dialOptions{})
+	if proxy != "localhost:4321" {
+		t.Errorf("getSocksProxy(%v) = %v, want %v", "", proxy, "localhost:4321")
+	}
+
+	// test configuration option overrides environment variable
+	os.Setenv("socks_proxy", "localhost:4321")
+	proxy = getSocksProxy(&dialOptions{socksProxy: "localhost:1234"})
+	if proxy != "localhost:1234" {
+		t.Errorf("getSocksProxy(%v) = %v, want %v", "localhost:1234", proxy, "localhost:1234")
+	}
+
+	os.Setenv("socks_proxy", "")
 }
 
 // newTime builds a UTC time from the given year, month, day, hour and minute
