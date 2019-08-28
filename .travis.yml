@@ -2,8 +2,8 @@ language: go
 sudo: required
 dist: xenial
 go:
-  - 1.10.x
   - 1.11.x
+  - 1.12.x
 before_install:
 - sudo sysctl net.ipv6.conf.lo.disable_ipv6=0
 - go get github.com/mattn/goveralls
