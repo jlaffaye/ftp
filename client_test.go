@@ -56,6 +56,14 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Error(err)
 	}
 
+	_, err = c.Stat("test")
+	if err == nil {
+		t.Error("expected error")
+	}
+	if err.Error() != "MLST not supported" {
+		t.Errorf("unexpected error: %s", err.Error())
+	}
+
 	_, err = c.List(".")
 	if err != nil {
 		t.Error(err)
