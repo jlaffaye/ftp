@@ -716,10 +716,9 @@ func (c *ServerConn) Quotas() (entries map[string]string, err error) {
 	if message != "" {
 		// Regex Sample https://regex101.com/r/lv2nWj/1/
 		var re = regexp.MustCompile(`(?m)^(\s*)([a-zA-Z\-\_0-9\\\/\.\s\[\]\s]*):(\s*)([a-zA-Z\-\_0-9\\\/\.]*)$`)
-		var lines = re.FindAllStringSubmatch(message, -1)
-		for i, match := range lines {
-			if i == 0 || i == len(lines) -1 {
-				continue
+		for i, match := range re.FindAllStringSubmatch(message, -1) {
+			if i == 0 {
+				continue // Skip the intro line.
 			}
 			if match[2] != "" {
 
