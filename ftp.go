@@ -701,6 +701,31 @@ func (c *ServerConn) RemoveDir(path string) error {
 	return err
 }
 
+// List issues a SITE QUOTA command.
+func (c *ServerConn) Quota() (entries []*Entry, err error) {
+
+	conn, err := c.cmdDataConnFrom(0, "%s", "SITE QUOTA")
+	if err != nil {
+		return
+	}
+
+	r := &Response{conn: conn, c: c}
+	defer r.Close()
+
+	scanner := bufio.NewScanner(r)
+	now := time.Now()
+	for scanner.Scan() {
+		entry, err := parseListLine(scanner.Text(), now, c.options.location)
+		if err == nil {
+			entries = append(entries, entry)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return
+}
+
 // NoOp issues a NOOP FTP command.
 // NOOP has no effects and is usually used to prevent the remote FTP server to
 // close the otherwise idle connection.
