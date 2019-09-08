@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/textproto"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -701,29 +702,38 @@ func (c *ServerConn) RemoveDir(path string) error {
 	return err
 }
 
-// List issues a SITE QUOTA command.
-func (c *ServerConn) Quota() (entries []*Entry, err error) {
-
-	conn, err := c.cmdDataConnFrom(0, "%s", "SITE QUOTA")
+// Quotas issues a SITE QUOTA command.
+// This will read all params from the list and convert them to Uppercase Camel Case for ease of use.
+func (c *ServerConn) Quotas() (entries map[string]string, err error) {
+	_, message, err := c.cmd(-1, "SITE QUOTA")
 	if err != nil {
 		return
 	}
 
-	r := &Response{conn: conn, c: c}
-	defer r.Close()
+	var link = regexp.MustCompile(`(^[A-Za-z])|(_|\s)([A-Za-z])`)
 
-	scanner := bufio.NewScanner(r)
-	now := time.Now()
-	for scanner.Scan() {
-		entry, err := parseListLine(scanner.Text(), now, c.options.location)
-		if err == nil {
-			entries = append(entries, entry)
+	entries = make(map[string]string)
+	if message != "" {
+		// Regex Sample https://regex101.com/r/lv2nWj/1/
+		var re = regexp.MustCompile(`(?m)^(\s*)([a-zA-Z\-\_0-9\\\/\.\s\[\]\s]*):(\s*)([a-zA-Z\-\_0-9\\\/\.]*)$`)
+		var lines = re.FindAllStringSubmatch(message, -1)
+		for i, match := range lines {
+			if i == 0 || i == len(lines) -1 {
+				continue
+			}
+			if match[2] != "" {
+
+				key := link.ReplaceAllStringFunc(match[2], func(s string) string {
+					// Replace Spaces with nothing
+					return strings.ToUpper(strings.Replace(s, " ", "", -1))
+				})
+
+				entries[ key ] = match[4]
+			}
 		}
+		return entries, nil
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return
+	return nil, err
 }
 
 // NoOp issues a NOOP FTP command.
