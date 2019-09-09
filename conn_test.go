@@ -24,7 +24,7 @@ type ftpMock struct {
 }
 
 // newFtpMock returns a mock implementation of a FTP server
-// For simplication, a mock instance only accepts a signle connection and terminates afer
+// For simplification, a mock instance only accepts a single connection and terminates after
 func newFtpMock(t *testing.T, address string) (*ftpMock, error) {
 	var err error
 	mock := &ftpMock{address: address}
