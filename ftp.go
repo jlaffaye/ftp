@@ -105,6 +105,9 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// Update connection in options
+		do.conn = tconn
 	}
 
 	// Use the resolved IP address in case addr contains a domain name
@@ -231,6 +234,30 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	return Dial(addr, DialWithTimeout(timeout))
 }
 
+// StartTLS Upgrade an existing connection to use explicit TLS using the AUTH TLS command.
+//
+// For servers that require their connection to be encrypted this step is usually done
+// between establishing the connection and the Login().
+func (c *ServerConn) StartTLS(config *tls.Config) error {
+	if c.options.tlsConfig != nil {
+		return errors.New("already have TLS")
+	}
+
+	if _, _, err := c.cmd(234, "AUTH TLS"); err != nil {
+		return err
+	}
+
+	conn := tls.Client(c.options.conn, config)
+	c.conn = textproto.NewConn(conn)
+	c.options.tlsConfig = config.Clone()
+
+	if err := c.setDataEncrypted(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Login authenticates the client with specified user and password.
 //
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers
@@ -262,8 +289,7 @@ func (c *ServerConn) Login(user, password string) error {
 
 	// If using implicit TLS, make data connections also use TLS
 	if c.options.tlsConfig != nil {
-		c.cmd(StatusCommandOK, "PBSZ 0")
-		c.cmd(StatusCommandOK, "PROT P")
+		return c.setDataEncrypted()
 	}
 
 	return err
@@ -331,6 +357,18 @@ func (c *ServerConn) setUTF8() error {
 
 	if code != StatusCommandOK {
 		return errors.New(message)
+	}
+
+	return nil
+}
+
+func (c *ServerConn) setDataEncrypted() error {
+	if _, _, err := c.cmd(200, "PBSZ 0"); err != nil {
+		return err
+	}
+
+	if _, _, err := c.cmd(200, "PROT P"); err != nil {
+		return err
 	}
 
 	return nil
@@ -424,15 +462,16 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 		return c.options.dialFunc("tcp", addr)
 	}
 
-	if c.options.tlsConfig != nil {
-		conn, err := c.options.dialer.Dial("tcp", addr)
-		if err != nil {
-			return nil, err
-		}
-		return tls.Client(conn, c.options.tlsConfig), err
+	conn, err := c.options.dialer.Dial("tcp", addr)
+	if err != nil {
+		return nil, err
 	}
 
-	return c.options.dialer.Dial("tcp", addr)
+	if c.options.tlsConfig == nil {
+		return conn, nil
+	}
+
+	return tls.Client(conn, c.options.tlsConfig), err
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
