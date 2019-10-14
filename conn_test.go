@@ -23,8 +23,9 @@ type ftpMock struct {
 	sync.WaitGroup
 }
 
-// newFtpMock returns a mock implementation of a FTP server
-// For simplication, a mock instance only accepts a signle connection and terminates afer
+// newFtpMock returns a mock implementation of a FTP server.
+//
+// To simplify, a mock instance only accepts a single connection and terminates afterwards.
 func newFtpMock(t *testing.T, address string) (*ftpMock, error) {
 	var err error
 	mock := &ftpMock{address: address}
