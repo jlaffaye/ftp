@@ -8,7 +8,7 @@ go:
 before_install:
 - sudo sysctl net.ipv6.conf.lo.disable_ipv6=0
 - go get github.com/mattn/goveralls
-- go get github.com/golang/lint/golint
+- go get golang.org/x/lint/golint
 script:
 - goveralls -v
 - golint -set_exit_status $(go list ./...)
