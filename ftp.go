@@ -544,7 +544,7 @@ func (c *ServerConn) Stat(path string)(entry *Entry, err error){
 		cmd = "MLST"
 		parser = parseRFC3659ListLine
 	} else {
-		return nil, errors.New("unexpected MLST response")
+		return nil, errors.New("MLST unsupported")
 	}
 	_, msg, err := c.cmd(StatusRequestedFileActionOK, "%s %s", cmd, path)
 	if err!= nil{
