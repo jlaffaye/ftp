@@ -50,11 +50,28 @@ type dialOptions struct {
 	context     context.Context
 	dialer      net.Dialer
 	tlsConfig   *tls.Config
+	tlsExplicit bool
 	conn        net.Conn
 	disableEPSV bool
 	location    *time.Location
 	debugOutput io.Writer
 	dialFunc    func(network, address string) (net.Conn, error)
+}
+
+func (o *dialOptions) ctx() context.Context {
+	if o.context != nil {
+		return o.context
+	}
+
+	return context.Background()
+}
+
+func (o *dialOptions) output(netConn net.Conn) io.ReadWriteCloser {
+	if o.debugOutput == nil {
+		return netConn
+	}
+
+	return newDebugWrapper(netConn, o.debugOutput)
 }
 
 // Entry describes a file and is returned by List().
@@ -90,16 +107,10 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 
 		if do.dialFunc != nil {
 			tconn, err = do.dialFunc("tcp", addr)
-		} else if do.tlsConfig != nil {
+		} else if do.tlsConfig != nil && !do.tlsExplicit {
 			tconn, err = tls.DialWithDialer(&do.dialer, "tcp", addr, do.tlsConfig)
 		} else {
-			ctx := do.context
-
-			if ctx == nil {
-				ctx = context.Background()
-			}
-
-			tconn, err = do.dialer.DialContext(ctx, "tcp", addr)
+			tconn, err = do.dialer.DialContext(do.ctx(), "tcp", addr)
 		}
 
 		if err != nil {
@@ -111,15 +122,10 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 	// If we use the domain name, we might not resolve to the same IP.
 	remoteAddr := tconn.RemoteAddr().(*net.TCPAddr)
 
-	var sourceConn io.ReadWriteCloser = tconn
-	if do.debugOutput != nil {
-		sourceConn = newDebugWrapper(tconn, do.debugOutput)
-	}
-
 	c := &ServerConn{
 		options:  do,
 		features: make(map[string]string),
-		conn:     textproto.NewConn(sourceConn),
+		conn:     textproto.NewConn(do.output(tconn)),
 		host:     remoteAddr.IP.String(),
 	}
 
@@ -127,6 +133,15 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 	if err != nil {
 		c.Quit()
 		return nil, err
+	}
+
+	if do.tlsConfig != nil && do.tlsExplicit {
+		if err := c.authTLS(); err != nil {
+			_ = c.Quit()
+			return nil, err
+		}
+		tconn = tls.Client(tconn, do.tlsConfig)
+		c.conn = textproto.NewConn(do.output(tconn))
 	}
 
 	err = c.feat()
@@ -188,13 +203,15 @@ func DialWithContext(ctx context.Context) DialOption {
 }
 
 // DialWithTLS returns a DialOption that configures the ServerConn with specified TLS config
+// the explicit parameter means the client first runs an explicit command ("AUTH TLS")
 //
 // If called together with the DialWithDialFunc option, the DialWithDialFunc function
 // will be used when dialing new connections but regardless of the function,
 // the connection will be treated as a TLS connection.
-func DialWithTLS(tlsConfig *tls.Config) DialOption {
+func DialWithTLS(tlsConfig *tls.Config, explicit ...bool) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.tlsConfig = tlsConfig
+		do.tlsExplicit = len(explicit) > 0 && explicit[0]
 	}}
 }
 
@@ -304,6 +321,11 @@ func (c *ServerConn) feat() error {
 	}
 
 	return nil
+}
+
+func (c *ServerConn) authTLS() error {
+	_, _, err := c.cmd(StatusAuthOK, "AUTH TLS")
+	return err
 }
 
 // setUTF8 issues an "OPTS UTF8 ON" command.

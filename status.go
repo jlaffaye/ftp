@@ -25,6 +25,7 @@ const (
 	StatusLoggedIn              = 230
 	StatusLoggedOut             = 231
 	StatusLogoutAck             = 232
+	StatusAuthOK                = 234
 	StatusRequestedFileActionOK = 250
 	StatusPathCreated           = 257
 
