@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"net/textproto"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -710,26 +709,8 @@ func (c *ServerConn) Quotas() (entries map[string]string, err error) {
 		return
 	}
 
-	var link = regexp.MustCompile(`(^[A-Za-z])|(_|\s)([A-Za-z])`)
-
-	entries = make(map[string]string)
 	if message != "" {
-		// Regex Sample https://regex101.com/r/lv2nWj/1/
-		var re = regexp.MustCompile(`(?m)^(\s*)([a-zA-Z\-\_0-9\\\/\.\s\[\]\s]*):(\s*)([a-zA-Z\-\_0-9\\\/\.]*)$`)
-		for i, match := range re.FindAllStringSubmatch(message, -1) {
-			if i == 0 {
-				continue // Skip the intro line.
-			}
-			if match[2] != "" {
-
-				key := link.ReplaceAllStringFunc(match[2], func(s string) string {
-					// Replace Spaces with nothing
-					return strings.ToUpper(strings.Replace(s, " ", "", -1))
-				})
-
-				entries[ key ] = match[4]
-			}
-		}
+		entries, _ := parseQuotas(message)
 		return entries, nil
 	}
 	return nil, err

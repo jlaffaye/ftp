@@ -3,6 +3,7 @@ package ftp
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -225,6 +226,30 @@ func parseListLine(line string, now time.Time, loc *time.Location) (*Entry, erro
 		}
 	}
 	return nil, errUnsupportedListLine
+}
+
+func parseQuotas(line string) (entries map[string]string, err error) {
+	entries = make(map[string]string)
+
+	// Regex Sample https://regex101.com/r/lv2nWj/1/
+	var re = regexp.MustCompile(`(?m)^(\s*)([a-zA-Z\-\_0-9\\\/\.\s\[\]\s]*):(\s*)([a-zA-Z\-\_0-9\\\/\.]*)$`)
+	var link = regexp.MustCompile(`(^[A-Za-z])|(_|\s)([A-Za-z])`)
+	for i, match := range re.FindAllStringSubmatch(line, -1) {
+		if i == 0 {
+			continue // Skip the intro line.
+		}
+		if match[2] != "" {
+
+			key := link.ReplaceAllStringFunc(match[2], func(s string) string {
+				// Replace Spaces with nothing
+				return strings.ToUpper(strings.Replace(s, " ", "", -1))
+			})
+
+			entries[ key ] = match[4]
+		}
+	}
+
+	return entries, nil
 }
 
 func (e *Entry) setSize(str string) (err error) {

@@ -83,6 +83,8 @@ func (mock *ftpMock) listen(t *testing.T) {
 			}
 		case "PASS":
 			mock.proto.Writer.PrintfLine("230-Hey,\r\nWelcome to my FTP\r\n230 Access granted")
+		case "CLNT":
+			mock.proto.Writer.PrintfLine("200 OK")
 		case "TYPE":
 			mock.proto.Writer.PrintfLine("200 Type set ok")
 		case "CWD":
@@ -190,6 +192,24 @@ func (mock *ftpMock) listen(t *testing.T) {
 			mock.proto.Writer.PrintfLine("200 NOOP ok.")
 		case "REIN":
 			mock.proto.Writer.PrintfLine("220 Logged out")
+		case "SITE":
+			if cmdParts[1] == "QUOTA" {
+				response := []string{}
+				response = append(response, "200-The current quota for this session are [current/limit]:")
+				response = append(response, "Name: anonymous")
+				response = append(response, "Quota Type: User")
+				response = append(response, "Per Session: False")
+				response = append(response, "Per Session: False")
+				response = append(response, "Limit Type: Hard")
+				response = append(response, "Uploaded bytes:	11486600000.00/10485800000000.00")
+				response = append(response, "Downloaded bytes:	unlimited")
+				response = append(response, "Transferred bytes:	unlimited")
+				response = append(response, "Uploaded files:	unlimited")
+				response = append(response, "Downloaded files:	unlimited")
+				response = append(response, "Transferred files:	unlimited")
+				response = append(response, "200 Please contact root@127.0.0.1 if these entries are inaccurate")
+				mock.proto.Writer.PrintfLine( strings.Join(response, "\r\n") )
+			}
 		case "QUIT":
 			mock.proto.Writer.PrintfLine("221 Goodbye.")
 			return

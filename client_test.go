@@ -36,6 +36,20 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Error(err)
 	}
 
+	quotaEntries, err := c.Quotas()
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Check the Response of the Quotas Call
+	if val, ok := quotaEntries["Name"]; ok {
+		if val != "anonymous" {
+			t.Error("Test Failed, failed to match the Name from the Quotas")
+		}
+	} else {
+		t.Error("Test Failed, failed to get the Name from the Quotas")
+	}
+
 	err = c.ChangeDir("incoming")
 	if err != nil {
 		t.Error(err)
