@@ -205,3 +205,39 @@ func newTime(year int, month time.Month, day int, hourMinSec ...int) time.Time {
 
 	return time.Date(year, month, day, hour, min, sec, 0, time.UTC)
 }
+
+func TestParseQuota(t *testing.T) {
+	responseString := `200-The current quota for this session are [current/limit]:
+        Name: anonymous
+        Quota Type: User
+        Per Session: False
+        Per Session: False
+        Limit Type: Hard
+        Uploaded bytes:	11486600000.00/10485800000000.00
+        Downloaded bytes:	unlimited
+        Transferred bytes:	unlimited
+        Uploaded files:	unlimited
+        Downloaded files:	unlimited
+        Transferred files:	unlimited
+        200 Please contact root@127.0.0.1 if these entries are inaccurate`
+
+	entries, err := parseQuotas(responseString)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(entries) != 10 {
+		t.Error("Parse Quotas Failed due to the incorrect amount of quota body returned.", len(entries))
+		return
+	}
+
+	// Check the Response of the Quotas Call
+	if val, ok := entries["DownloadedBytes"]; ok {
+		if val != "unlimited" {
+			t.Error("Parse Quotas Failed. Failed to match the Downloaded Bytes from the Sample Response:", val)
+		}
+	} else {
+		t.Error("Parse Quotas Failed. Failed to find a selected Key from the Quotas Sample Response.")
+	}
+
+}
