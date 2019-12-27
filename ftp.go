@@ -537,16 +537,10 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 }
 //Stat a MLST FTP command
 func (c *ServerConn) Stat(path string)(entry *Entry, err error){
-	var cmd string
-	var parser parseFunc
-
-	if c.mlstSupported {
-		cmd = "MLST"
-		parser = parseRFC3659ListLine
-	} else {
+	if !c.mlstSupported {
 		return nil, errors.New("MLST unsupported")
 	}
-	_, msg, err := c.cmd(StatusRequestedFileActionOK, "%s %s", cmd, path)
+	_, msg, err := c.cmd(StatusRequestedFileActionOK, "%s %s", "MLST", path)
 	if err!= nil{
 		return nil, err
 	}
@@ -555,7 +549,7 @@ func (c *ServerConn) Stat(path string)(entry *Entry, err error){
 		return nil, errors.New("unexpected MLST response")
 	}
 	now := time.Now()
-	return parser(strings.TrimLeft(lines[1], " "), now, c.options.location)
+	return parseRFC3659ListLine(strings.TrimLeft(lines[1], " "), now, c.options.location)
 }
 
 // ChangeDir issues a CWD FTP command, which changes the current directory to
