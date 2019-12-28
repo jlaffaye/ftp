@@ -221,10 +221,7 @@ func TestParseQuota(t *testing.T) {
         Transferred files:	unlimited
         200 Please contact root@127.0.0.1 if these entries are inaccurate`
 
-	entries, err := parseQuotas(responseString)
-	if err != nil {
-		t.Error(err)
-	}
+	entries := parseQuotas(responseString)
 
 	if len(entries) != 10 {
 		t.Error("Parse Quotas Failed due to the incorrect amount of quota body returned.", len(entries))

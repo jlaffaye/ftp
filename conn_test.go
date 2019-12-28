@@ -194,20 +194,21 @@ func (mock *ftpMock) listen(t *testing.T) {
 			mock.proto.Writer.PrintfLine("220 Logged out")
 		case "SITE":
 			if cmdParts[1] == "QUOTA" {
-				response := []string{}
-				response = append(response, "200-The current quota for this session are [current/limit]:")
-				response = append(response, "Name: anonymous")
-				response = append(response, "Quota Type: User")
-				response = append(response, "Per Session: False")
-				response = append(response, "Per Session: False")
-				response = append(response, "Limit Type: Hard")
-				response = append(response, "Uploaded bytes:	11486600000.00/10485800000000.00")
-				response = append(response, "Downloaded bytes:	unlimited")
-				response = append(response, "Transferred bytes:	unlimited")
-				response = append(response, "Uploaded files:	unlimited")
-				response = append(response, "Downloaded files:	unlimited")
-				response = append(response, "Transferred files:	unlimited")
-				response = append(response, "200 Please contact root@127.0.0.1 if these entries are inaccurate")
+				response := []string{
+					"200-The current quota for this session are [current/limit]:",
+					"Name: anonymous",
+					"Quota Type: User",
+					"Per Session: False",
+					"Per Session: False",
+					"Limit Type: Hard",
+					"Uploaded bytes:	11486600000.00/10485800000000.00",
+					"Downloaded bytes:	unlimited",
+					"Transferred bytes:	unlimited",
+					"Uploaded files:	unlimited",
+					"Downloaded files:	unlimited",
+					"Transferred files:	unlimited",
+					"200 Please contact root@127.0.0.1 if these entries are inaccurate",
+				}
 				mock.proto.Writer.PrintfLine( strings.Join(response, "\r\n") )
 			}
 		case "QUIT":
