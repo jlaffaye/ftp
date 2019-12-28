@@ -706,14 +706,11 @@ func (c *ServerConn) RemoveDir(path string) error {
 func (c *ServerConn) Quotas() (entries map[string]string, err error) {
 	_, message, err := c.cmd(-1, "SITE QUOTA")
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	if message != "" {
-		entries, _ := parseQuotas(message)
-		return entries, nil
-	}
-	return nil, err
+	entries = parseQuotas(message)
+	return entries, nil
 }
 
 // NoOp issues a NOOP FTP command.

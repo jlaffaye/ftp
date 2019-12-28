@@ -228,7 +228,7 @@ func parseListLine(line string, now time.Time, loc *time.Location) (*Entry, erro
 	return nil, errUnsupportedListLine
 }
 
-func parseQuotas(line string) (entries map[string]string, err error) {
+func parseQuotas(line string) (entries map[string]string) {
 	entries = make(map[string]string)
 
 	// Regex Sample https://regex101.com/r/lv2nWj/1/
@@ -249,7 +249,7 @@ func parseQuotas(line string) (entries map[string]string, err error) {
 		}
 	}
 
-	return entries, nil
+	return entries
 }
 
 func (e *Entry) setSize(str string) (err error) {
