@@ -1,7 +1,7 @@
 package ftp
 
 import (
-	"fmt"
+	pa "path"
 	"strings"
 )
 
@@ -27,7 +27,7 @@ func (w *Walker) Next() bool {
 	if w.descend && w.cur.err == nil && w.cur.entry.Type == EntryTypeFolder {
 		list, err := w.serverConn.List(w.cur.path)
 		if err != nil {
-			w.cur.err = nil
+			w.cur.err = err
 			w.stack = append(w.stack, w.cur)
 		} else {
 			for i := len(list) - 1; i >= 0; i-- {
@@ -37,7 +37,7 @@ func (w *Walker) Next() bool {
 
 				var path string
 				if list[i].Type == EntryTypeFolder {
-					path = fmt.Sprintf("%s%s", w.cur.path, list[i].Name)
+					path = pa.Join(w.cur.path, list[i].Name)
 				} else {
 					path = w.cur.path
 				}
