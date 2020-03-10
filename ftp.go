@@ -629,6 +629,27 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	return err
 }
 
+// Append issues a APPE FTP command to store a file to the remote FTP server.
+// If a file already exists with the given path, then the content of the
+// io.Reader is appended. Otherwise, a new file is created with that content.
+//
+// Hint: io.Pipe() can be used if an io.Writer is required.
+func (c *ServerConn) Append(path string, r io.Reader) error {
+	conn, err := c.cmdDataConnFrom(0, "APPE %s", path)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(conn, r)
+	conn.Close()
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
+	return err
+}
+
 // Rename renames a file on the remote FTP server.
 func (c *ServerConn) Rename(from, to string) error {
 	_, _, err := c.cmd(StatusRequestFilePending, "RNFR %s", from)

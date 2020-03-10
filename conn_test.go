@@ -136,7 +136,14 @@ func (mock *ftpMock) listen(t *testing.T) {
 				break
 			}
 			mock.proto.Writer.PrintfLine("150 please send")
-			mock.recvDataConn()
+			mock.recvDataConn(false)
+		case "APPE":
+			if mock.dataConn == nil {
+				mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused")
+				break
+			}
+			mock.proto.Writer.PrintfLine("150 please send")
+			mock.recvDataConn(true)
 		case "LIST":
 			if mock.dataConn == nil {
 				mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused")
@@ -269,9 +276,11 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 	return p, nil
 }
 
-func (mock *ftpMock) recvDataConn() {
+func (mock *ftpMock) recvDataConn(append bool) {
 	mock.dataConn.Wait()
-	mock.fileCont = new(bytes.Buffer)
+	if !append {
+		mock.fileCont = new(bytes.Buffer)
+	}
 	io.Copy(mock.fileCont, mock.dataConn.conn)
 	mock.proto.Writer.PrintfLine("226 Transfer Complete")
 	mock.closeDataConn()
