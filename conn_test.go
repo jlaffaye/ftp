@@ -1,9 +1,9 @@
 package ftp
 
 import (
+	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/textproto"
 	"reflect"
@@ -19,6 +19,7 @@ type ftpMock struct {
 	proto    *textproto.Conn
 	commands []string // list of received commands
 	rest     int
+	fileCont *bytes.Buffer
 	dataConn *mockDataConn
 	sync.WaitGroup
 }
@@ -166,7 +167,7 @@ func (mock *ftpMock) listen(t *testing.T) {
 
 			mock.dataConn.Wait()
 			mock.proto.Writer.PrintfLine("150 Opening ASCII mode data connection for file list")
-			mock.dataConn.conn.Write([]byte(testData[mock.rest:]))
+			mock.dataConn.conn.Write(mock.fileCont.Bytes()[mock.rest:])
 			mock.rest = 0
 			mock.proto.Writer.PrintfLine("226 Transfer complete")
 			mock.closeDataConn()
@@ -270,7 +271,8 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 
 func (mock *ftpMock) recvDataConn() {
 	mock.dataConn.Wait()
-	io.Copy(ioutil.Discard, mock.dataConn.conn)
+	mock.fileCont = new(bytes.Buffer)
+	io.Copy(mock.fileCont, mock.dataConn.conn)
 	mock.proto.Writer.PrintfLine("226 Transfer Complete")
 	mock.closeDataConn()
 }
