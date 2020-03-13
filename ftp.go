@@ -701,6 +701,20 @@ func (c *ServerConn) RemoveDir(path string) error {
 	return err
 }
 
+//Walk prepares the internal walk function so that the caller can begin traversing the directory
+func (c *ServerConn) Walk(root string) *Walker {
+	w := new(Walker)
+	w.serverConn = c
+
+	if !strings.HasSuffix(root, "/") {
+		root += "/"
+	}
+
+	w.root = root
+
+	return w
+}
+
 // NoOp issues a NOOP FTP command.
 // NOOP has no effects and is usually used to prevent the remote FTP server to
 // close the otherwise idle connection.
