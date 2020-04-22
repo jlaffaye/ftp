@@ -113,6 +113,27 @@ func testConn(t *testing.T, disableEPSV bool) {
 		r.Close()
 	}
 
+	data2 := bytes.NewBufferString(testData)
+	err = c.Append("tset", data2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Read without deadline, after append
+	r, err = c.Retr("tset")
+	if err != nil {
+		t.Error(err)
+	} else {
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Error(err)
+		}
+		if string(buf) != testData+testData {
+			t.Errorf("'%s'", buf)
+		}
+		r.Close()
+	}
+
 	fileSize, err := c.FileSize("magic-file")
 	if err != nil {
 		t.Error(err)
