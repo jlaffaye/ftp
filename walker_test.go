@@ -2,7 +2,6 @@ package ftp
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -29,10 +28,10 @@ func TestWalkReturnsCorrectlyPopulatedWalker(t *testing.T) {
 
 func TestFieldsReturnCorrectData(t *testing.T) {
 	w := Walker{
-		cur: item{
+		cur: &item{
 			path: "/root/",
-			err:  fmt.Errorf("This is an error"),
-			entry: Entry{
+			err:  fmt.Errorf("this is an error"),
+			entry: &Entry{
 				Name: "root",
 				Size: 123,
 				Time: time.Now(),
@@ -41,7 +40,7 @@ func TestFieldsReturnCorrectData(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, "This is an error", w.Err().Error())
+	assert.Equal(t, "this is an error", w.Err().Error())
 	assert.Equal(t, "/root/", w.Path())
 	assert.Equal(t, EntryTypeFolder, w.Stat().Type)
 }
@@ -55,11 +54,22 @@ func TestSkipDirIsCorrectlySet(t *testing.T) {
 }
 
 func TestNoDescendDoesNotAddToStack(t *testing.T) {
-	w := new(Walker)
-	w.cur = item{
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	c, cErr := Connect(mock.Addr())
+	if cErr != nil {
+		t.Fatal(err)
+	}
+
+	w := c.Walk("/root")
+	w.cur = &item{
 		path: "/root/",
 		err:  nil,
-		entry: Entry{
+		entry: &Entry{
 			Name: "root",
 			Size: 123,
 			Time: time.Now(),
@@ -67,11 +77,11 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 		},
 	}
 
-	w.stack = []item{
-		item{
+	w.stack = []*item{
+		&item{
 			path: "file",
 			err:  nil,
-			entry: Entry{
+			entry: &Entry{
 				Name: "file",
 				Size: 123,
 				Time: time.Now(),
@@ -90,11 +100,23 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 }
 
 func TestEmptyStackReturnsFalse(t *testing.T) {
-	w := new(Walker)
-	w.cur = item{
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	c, cErr := Connect(mock.Addr())
+	if cErr != nil {
+		t.Fatal(err)
+	}
+
+	w := c.Walk("/root")
+
+	w.cur = &item{
 		path: "/root/",
 		err:  nil,
-		entry: Entry{
+		entry: &Entry{
 			Name: "root",
 			Size: 123,
 			Time: time.Now(),
@@ -102,7 +124,7 @@ func TestEmptyStackReturnsFalse(t *testing.T) {
 		},
 	}
 
-	w.stack = []item{}
+	w.stack = []*item{}
 
 	w.SkipDir()
 
@@ -112,11 +134,22 @@ func TestEmptyStackReturnsFalse(t *testing.T) {
 }
 
 func TestCurAndStackSetCorrectly(t *testing.T) {
-	w := new(Walker)
-	w.cur = item{
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	c, cErr := Connect(mock.Addr())
+	if cErr != nil {
+		t.Fatal(err)
+	}
+
+	w := c.Walk("/root")
+	w.cur = &item{
 		path: "root/file1",
 		err:  nil,
-		entry: Entry{
+		entry: &Entry{
 			Name: "file1",
 			Size: 123,
 			Time: time.Now(),
@@ -124,21 +157,21 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 		},
 	}
 
-	w.stack = []item{
-		item{
+	w.stack = []*item{
+		&item{
 			path: "file",
 			err:  nil,
-			entry: Entry{
+			entry: &Entry{
 				Name: "file",
 				Size: 123,
 				Time: time.Now(),
 				Type: EntryTypeFile,
 			},
 		},
-		item{
+		&item{
 			path: "root/file1",
 			err:  nil,
-			entry: Entry{
+			entry: &Entry{
 				Name: "file1",
 				Size: 123,
 				Time: time.Now(),
@@ -153,39 +186,4 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 	assert.Equal(t, true, result, "Result should return true")
 	assert.Equal(t, 0, len(w.stack))
 	assert.Equal(t, "file", w.cur.entry.Name)
-}
-
-func TestStackIsPopulatedCorrectly(t *testing.T) {
-
-	mock, err := newFtpMock(t, "127.0.0.1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer mock.Close()
-
-	c, cErr := Connect(mock.Addr())
-	if cErr != nil {
-		t.Fatal(err)
-	}
-
-	w := Walker{
-		cur: item{
-			path: "/root",
-			entry: Entry{
-				Name: "root",
-				Size: 123,
-				Time: time.Now(),
-				Type: EntryTypeFolder,
-			},
-		},
-		serverConn: c,
-	}
-
-	w.descend = true
-
-	w.Next()
-
-	assert.Equal(t, 0, len(w.stack))
-	assert.Equal(t, "lo", w.cur.entry.Name)
-	assert.Equal(t, true, strings.HasSuffix(w.cur.path, "/"))
 }
