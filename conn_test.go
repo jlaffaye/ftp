@@ -196,8 +196,15 @@ func (mock *ftpMock) listen(t *testing.T) {
 			mock.proto.Writer.PrintfLine("350 Restarting at %s. Send STORE or RETRIEVE to initiate transfer", cmdParts[1])
 		case "NOOP":
 			mock.proto.Writer.PrintfLine("200 NOOP ok.")
-		case "OPTS UTF8 ON":
-			mock.proto.Writer.PrintfLine("200 OK, UTF-8 enabled")
+		case "OPTS":
+			if len(cmdParts) != 3 {
+				mock.proto.Writer.PrintfLine("500 wrong number of arguments")
+				break
+			}
+			if (strings.Join(cmdParts[1:], " ")) == "UTF8 ON" {
+				mock.proto.Writer.PrintfLine("200 OK, UTF-8 enabled")
+				break
+			}
 		case "REIN":
 			mock.proto.Writer.PrintfLine("220 Logged out")
 		case "QUIT":
