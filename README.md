@@ -26,6 +26,11 @@ if err != nil {
     log.Fatal(err)
 }
 
+err = c.SetUTF8()
+if err != nil {
+    log.Fatal(err)
+}
+
 // Do something with the FTP conn
 
 if err := c.Quit(); err != nil {

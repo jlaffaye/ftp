@@ -279,9 +279,6 @@ func (c *ServerConn) Login(user, password string) error {
 		return err
 	}
 
-	// Switch to UTF-8
-	err = c.setUTF8()
-
 	// If using implicit TLS, make data connections also use TLS
 	if c.options.tlsConfig != nil {
 		c.cmd(StatusCommandOK, "PBSZ 0")
@@ -329,36 +326,6 @@ func (c *ServerConn) feat() error {
 		}
 
 		c.features[command] = commandDesc
-	}
-
-	return nil
-}
-
-// setUTF8 issues an "OPTS UTF8 ON" command.
-func (c *ServerConn) setUTF8() error {
-	if _, ok := c.features["UTF8"]; !ok {
-		return nil
-	}
-
-	code, message, err := c.cmd(-1, "OPTS UTF8 ON")
-	if err != nil {
-		return err
-	}
-
-	// Workaround for FTP servers, that does not support this option.
-	if code == StatusBadArguments {
-		return nil
-	}
-
-	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
-	// "202 UTF8 mode is always enabled. No need to send this command." when
-	// trying to use it. That's OK
-	if code == StatusCommandNotImplemented {
-		return nil
-	}
-
-	if code != StatusCommandOK {
-		return errors.New(message)
 	}
 
 	return nil
@@ -562,6 +529,36 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		return nil, err
 	}
 	return
+}
+
+// SetUTF8 issues an "OPTS UTF8 ON" command.
+func (c *ServerConn) SetUTF8() error {
+	if _, ok := c.features["UTF8"]; !ok {
+		return nil
+	}
+
+	code, message, err := c.cmd(-1, "OPTS UTF8 ON")
+	if err != nil {
+		return err
+	}
+
+	// Workaround for FTP servers, that does not support this option.
+	if code == StatusBadArguments {
+		return nil
+	}
+
+	// The ftpd "filezilla-server" has FEAT support for UTF8, but always returns
+	// "202 UTF8 mode is always enabled. No need to send this command." when
+	// trying to use it. That's OK
+	if code == StatusCommandNotImplemented {
+		return nil
+	}
+
+	if code != StatusCommandOK {
+		return errors.New(message)
+	}
+
+	return nil
 }
 
 // ChangeDir issues a CWD FTP command, which changes the current directory to
