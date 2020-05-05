@@ -75,7 +75,7 @@ func (mock *ftpMock) listen(t *testing.T) {
 		// At least one command must have a multiline response
 		switch cmdParts[0] {
 		case "FEAT":
-			mock.proto.Writer.PrintfLine("211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n SIZE\r\n211 End")
+			mock.proto.Writer.PrintfLine("211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n211 End")
 		case "USER":
 			if cmdParts[1] == "anonymous" {
 				mock.proto.Writer.PrintfLine("331 Please send your password")
@@ -196,6 +196,8 @@ func (mock *ftpMock) listen(t *testing.T) {
 			mock.proto.Writer.PrintfLine("350 Restarting at %s. Send STORE or RETRIEVE to initiate transfer", cmdParts[1])
 		case "NOOP":
 			mock.proto.Writer.PrintfLine("200 NOOP ok.")
+		case "OPTS UTF8 ON":
+			mock.proto.Writer.PrintfLine("200 OK, UTF-8 enabled")
 		case "REIN":
 			mock.proto.Writer.PrintfLine("220 Logged out")
 		case "QUIT":
