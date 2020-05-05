@@ -31,6 +31,11 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Fatal(err)
 	}
 
+	err = c.SetUTF8()
+	if err != nil {
+		t.Error(err)
+	}
+
 	err = c.NoOp()
 	if err != nil {
 		t.Error(err)
