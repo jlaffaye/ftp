@@ -1,10 +1,7 @@
 package ftp
 
 import (
-	"fmt"
-	"os"
 	"path"
-	"strings"
 )
 
 //Walker traverses the directory tree of a remote FTP server
@@ -26,38 +23,27 @@ type item struct {
 // which will then be available through the Path, Stat, and Err methods.
 // It returns false when the walk stops at the end of the tree.
 func (w *Walker) Next() bool {
-	var isRoot bool
+	// check if we need to init cur, maybe this should be inside Walk
 	if w.cur == nil {
 		w.cur = &item{
-			path: strings.Trim(w.root, string(os.PathSeparator)),
+			path: w.root,
+			entry: &Entry{
+				Type: EntryTypeFolder,
+			},
 		}
-
-		isRoot = true
 	}
 
-	entries, err := w.serverConn.List(w.cur.path)
-	w.cur.err = err
-	if err == nil {
-		if len(entries) == 0 {
-			w.cur.err = fmt.Errorf("no such file or directory: %s", w.cur.path)
+	if w.descend && w.cur.entry.Type == EntryTypeFolder {
+		entries, err := w.serverConn.List(w.cur.path)
 
+		// an error occured, drop out and stop walking
+		if err != nil {
+			w.cur.err = err
 			return false
 		}
 
-		if isRoot && len(entries) == 1 && entries[0].Type == EntryTypeFile {
-			w.cur.err = fmt.Errorf("root is not a directory: %s", w.cur.path)
-
-			return false
-		}
-
-		for i, entry := range entries {
-			if entry.Name == "." || (i == 0 && entry.Type == EntryTypeFile) {
-				entry.Name = path.Base(w.cur.path)
-				w.cur.entry = entry
-				continue
-			}
-
-			if entry.Name == ".." || !w.descend {
+		for _, entry := range entries {
+			if entry.Name == "." || entry.Name == ".." {
 				continue
 			}
 
@@ -74,9 +60,12 @@ func (w *Walker) Next() bool {
 		return false
 	}
 
+	// update cur
 	i := len(w.stack) - 1
 	w.cur = w.stack[i]
 	w.stack = w.stack[:i]
+
+	// reset SkipDir
 	w.descend = true
 
 	return true
