@@ -187,3 +187,26 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 	assert.Equal(t, 0, len(w.stack))
 	assert.Equal(t, "file", w.cur.entry.Name)
 }
+
+func TestCurInit(t *testing.T) {
+	mock, err := newFtpMock(t, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	c, cErr := Connect(mock.Addr())
+	if cErr != nil {
+		t.Fatal(err)
+	}
+
+	w := c.Walk("/root")
+
+	result := w.Next()
+
+	// mock fs has one file 'lo'
+
+	assert.Equal(t, true, result, "Result should return false")
+	assert.Equal(t, 0, len(w.stack))
+	assert.Equal(t, "/root/lo", w.Path())
+}
