@@ -3,10 +3,14 @@ package ftp
 import (
 	"bytes"
 	"io/ioutil"
+	"net"
 	"net/textproto"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -223,16 +227,24 @@ func TestConnect(t *testing.T) {
 	mock.Wait()
 }
 
-func TestTimeout(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
+func TestInvalidPort(t *testing.T) {
+	assert := assert.New(t)
+	c, err := DialTimeout("127.0.0.1:2121", 1*time.Second)
 
-	c, err := DialTimeout("localhost:2121", 1*time.Second)
-	if err == nil {
-		t.Fatal("expected timeout, got nil error")
-		c.Quit()
-	}
+	assert.Nil(c)
+	assert.EqualError(err, "dial tcp 127.0.0.1:2121: connect: connection refused")
+}
+
+func TestTimeout(t *testing.T) {
+	require, assert := require.New(t), assert.New(t)
+
+	l, err := net.Listen("tcp", "localhost:0")
+	require.NoError(err)
+	defer l.Close()
+
+	_, err = DialTimeout(l.Addr().String(), time.Second)
+	assert.Error(err)
+	assert.Contains(err.Error(), "i/o timeout")
 }
 
 func TestWrongLogin(t *testing.T) {
@@ -242,7 +254,7 @@ func TestWrongLogin(t *testing.T) {
 	}
 	defer mock.Close()
 
-	c, err := DialTimeout(mock.Addr(), 5*time.Second)
+	c, err := Dial(mock.Addr())
 	if err != nil {
 		t.Fatal(err)
 	}
