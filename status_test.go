@@ -1,17 +1,12 @@
 package ftp
 
-import "testing"
+import (
+	"testing"
 
-func TestValidStatusText(t *testing.T) {
-	txt := StatusText(StatusInvalidCredentials)
-	if txt == "" {
-		t.Fatal("exptected status text, got empty string")
-	}
-}
+	"github.com/stretchr/testify/assert"
+)
 
-func TestInvalidStatusText(t *testing.T) {
-	txt := StatusText(0)
-	if txt != "" {
-		t.Fatalf("got status text %q, expected empty string", txt)
-	}
+func TestStatusText(t *testing.T) {
+	assert.Equal(t, "Unknown status code: 0", StatusText(0))
+	assert.Equal(t, "Invalid username or password.", StatusText(StatusInvalidCredentials))
 }
