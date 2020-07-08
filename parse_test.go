@@ -1,10 +1,11 @@
 package ftp
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -99,24 +100,15 @@ var listTestsFail = []unsupportedLine{
 
 func TestParseValidListLine(t *testing.T) {
 	for _, lt := range listTests {
-		t.Run(fmt.Sprintf("parseListLine(%v)", lt.line), func(t *testing.T) {
-
+		t.Run(lt.line, func(t *testing.T) {
+			assert := assert.New(t)
 			entry, err := parseListLine(lt.line, now, time.UTC)
-			if err != nil {
-				t.Errorf("returned err = %v", err)
-				return
-			}
-			if entry.Name != lt.name {
-				t.Errorf("Name = '%v', want '%v'", entry.Name, lt.name)
-			}
-			if entry.Type != lt.entryType {
-				t.Errorf("EntryType = %v, want %v", entry.Type, lt.entryType)
-			}
-			if entry.Size != lt.size {
-				t.Errorf("Size = %v, want %v", entry.Size, lt.size)
-			}
-			if !entry.Time.Equal(lt.time) {
-				t.Errorf("Time = %v, want %v", entry.Time, lt.time)
+
+			if assert.NoError(err) {
+				assert.Equal(lt.name, entry.Name)
+				assert.Equal(lt.entryType, entry.Type)
+				assert.Equal(lt.size, entry.Size)
+				assert.Equal(lt.time, entry.Time)
 			}
 		})
 	}
@@ -124,34 +116,25 @@ func TestParseValidListLine(t *testing.T) {
 
 func TestParseSymlinks(t *testing.T) {
 	for _, lt := range listTestsSymlink {
-		entry, err := parseListLine(lt.line, now, time.UTC)
-		if err != nil {
-			t.Errorf("parseListLine(%v) returned err = %v", lt.line, err)
-			continue
-		}
-		if entry.Name != lt.name {
-			t.Errorf("parseListLine(%v).Name = '%v', want '%v'", lt.line, entry.Name, lt.name)
-		}
-		if entry.Target != lt.target {
-			t.Errorf("parseListLine(%v).Target = '%v', want '%v'", lt.line, entry.Target, lt.target)
-		}
-		if entry.Type != EntryTypeLink {
-			t.Errorf("parseListLine(%v).EntryType = %v, want EntryTypeLink", lt.line, entry.Type)
-		}
+		t.Run(lt.line, func(t *testing.T) {
+			assert := assert.New(t)
+			entry, err := parseListLine(lt.line, now, time.UTC)
+
+			if assert.NoError(err) {
+				assert.Equal(lt.name, entry.Name)
+				assert.Equal(lt.target, entry.Target)
+				assert.Equal(EntryTypeLink, entry.Type)
+			}
+		})
 	}
 }
 
 func TestParseUnsupportedListLine(t *testing.T) {
 	for _, lt := range listTestsFail {
-		t.Run(fmt.Sprintf("parseListLine(%v)", lt.line), func(t *testing.T) {
-
+		t.Run(lt.line, func(t *testing.T) {
 			_, err := parseListLine(lt.line, now, time.UTC)
-			if err == nil {
-				t.Error("expected to fail")
-			}
-			if err != lt.err {
-				t.Errorf("expected to fail with error: '%s'; was: '%s'", lt.err.Error(), err.Error())
-			}
+
+			assert.EqualError(t, err, lt.err.Error())
 		})
 	}
 }
@@ -175,12 +158,12 @@ func TestSettime(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		entry := &Entry{}
-		entry.setTime(strings.Fields(test.line), now, time.UTC)
+		t.Run(test.line, func(t *testing.T) {
+			entry := &Entry{}
+			entry.setTime(strings.Fields(test.line), now, time.UTC)
 
-		if !entry.Time.Equal(test.expected) {
-			t.Errorf("setTime(%v).Time = %v, want %v", test.line, entry.Time, test.expected)
-		}
+			assert.Equal(t, test.expected, entry.Time)
+		})
 	}
 }
 
