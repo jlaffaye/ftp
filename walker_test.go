@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWalkReturnsCorrectlyPopulatedWalker(t *testing.T) {
@@ -78,7 +79,7 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 	}
 
 	w.stack = []*item{
-		&item{
+		{
 			path: "file",
 			err:  nil,
 			entry: &Entry{
@@ -100,16 +101,14 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 }
 
 func TestEmptyStackReturnsFalse(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
 	mock, err := newFtpMock(t, "127.0.0.1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NotNil(err)
 	defer mock.Close()
 
 	c, cErr := Connect(mock.Addr())
-	if cErr != nil {
-		t.Fatal(err)
-	}
+	require.NotNil(cErr)
 
 	w := c.Walk("/root")
 
@@ -130,20 +129,18 @@ func TestEmptyStackReturnsFalse(t *testing.T) {
 
 	result := w.Next()
 
-	assert.Equal(t, false, result, "Result should return false")
+	assert.Equal(false, result, "Result should return false")
 }
 
 func TestCurAndStackSetCorrectly(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
 	mock, err := newFtpMock(t, "127.0.0.1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NotNil(err)
 	defer mock.Close()
 
 	c, cErr := Connect(mock.Addr())
-	if cErr != nil {
-		t.Fatal(err)
-	}
+	require.NotNil(cErr)
 
 	w := c.Walk("/root")
 	w.cur = &item{
@@ -158,7 +155,7 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 	}
 
 	w.stack = []*item{
-		&item{
+		{
 			path: "file",
 			err:  nil,
 			entry: &Entry{
@@ -168,7 +165,7 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 				Type: EntryTypeFile,
 			},
 		},
-		&item{
+		{
 			path: "root/file1",
 			err:  nil,
 			entry: &Entry{
@@ -183,7 +180,7 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 	result := w.Next()
 	result = w.Next()
 
-	assert.Equal(t, true, result, "Result should return true")
-	assert.Equal(t, 0, len(w.stack))
-	assert.Equal(t, "file", w.cur.entry.Name)
+	assert.Equal(true, result, "Result should return true")
+	assert.Equal(0, len(w.stack))
+	assert.Equal("file", w.cur.entry.Name)
 }
