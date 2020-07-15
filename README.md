@@ -13,6 +13,10 @@ A FTP client package for Go
 go get -u github.com/jlaffaye/ftp
 ```
 
+## Documentation ##
+
+https://pkg.go.dev/github.com/jlaffaye/ftp?tab=doc
+
 ## Example ##
 
 ```go
