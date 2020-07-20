@@ -346,7 +346,7 @@ func (c *ServerConn) setUTF8() error {
 	}
 
 	// Workaround for FTP servers, that does not support this option.
-	if code == StatusBadArguments {
+	if code == StatusBadArguments || code == StatusNotImplementedParameter {
 		return nil
 	}
 
