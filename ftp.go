@@ -773,6 +773,12 @@ func (c *ServerConn) NoOp() error {
 	return err
 }
 
+// SendCustomCommand issues a user specified command.
+// Returns the status code, the server response and an error if any.
+func (c *ServerConn) SendCustomCommand(command string) (int, string, error) {
+	return c.cmd(0, command)
+}
+
 // Logout issues a REIN FTP command to logout the current user.
 func (c *ServerConn) Logout() error {
 	_, _, err := c.cmd(StatusReady, "REIN")

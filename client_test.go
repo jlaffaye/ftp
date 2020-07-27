@@ -180,6 +180,17 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Error(err)
 	}
 
+	code, response, err := c.SendCustomCommand("NOOP")
+	if err != nil {
+		t.Error(err)
+	}
+	if code != StatusCommandOK {
+		t.Errorf("Unexpected status code, got %v, want %v", code, StatusCommandOK)
+	}
+	if response != "NOOP ok." {
+		t.Errorf("Unexpected custom command response %#v", response)
+	}
+
 	err = c.Logout()
 	if err != nil {
 		if protoErr := err.(*textproto.Error); protoErr != nil {
