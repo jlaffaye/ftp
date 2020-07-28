@@ -810,3 +810,8 @@ func (r *Response) Close() error {
 func (r *Response) SetDeadline(t time.Time) error {
 	return r.conn.SetDeadline(t)
 }
+
+// String returns the string representation of EntryType t.
+func (t EntryType) String() string {
+	return [...]string{"file", "folder", "link"}[t]
+}
