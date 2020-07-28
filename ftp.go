@@ -53,6 +53,7 @@ type dialOptions struct {
 	explicitTLS bool
 	conn        net.Conn
 	disableEPSV bool
+	disableUTF8 bool
 	location    *time.Location
 	debugOutput io.Writer
 	dialFunc    func(network, address string) (net.Conn, error)
@@ -176,6 +177,13 @@ func DialWithDisabledEPSV(disabled bool) DialOption {
 	}}
 }
 
+// DialWithDisabledUTF8 returns a DialOption that configures the ServerConn with UTF8 option disabled
+func DialWithDisabledUTF8(disabled bool) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.disableUTF8 = disabled
+	}}
+}
+
 // DialWithLocation returns a DialOption that configures the ServerConn with specified time.Location
 // The location is used to parse the dates sent by the server which are in server's timezone
 func DialWithLocation(location *time.Location) DialOption {
@@ -279,6 +287,11 @@ func (c *ServerConn) Login(user, password string) error {
 		return err
 	}
 
+	// Switch to UTF-8
+	if !c.options.disableUTF8 {
+		err = c.setUTF8()
+	}
+
 	// If using implicit TLS, make data connections also use TLS
 	if c.options.tlsConfig != nil {
 		c.cmd(StatusCommandOK, "PBSZ 0")
@@ -331,8 +344,8 @@ func (c *ServerConn) feat() error {
 	return nil
 }
 
-// SetUTF8 issues an "OPTS UTF8 ON" command.
-func (c *ServerConn) SetUTF8() error {
+// setUTF8 issues an "OPTS UTF8 ON" command.
+func (c *ServerConn) setUTF8() error {
 	if _, ok := c.features["UTF8"]; !ok {
 		return nil
 	}
