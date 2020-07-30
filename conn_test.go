@@ -75,7 +75,7 @@ func (mock *ftpMock) listen(t *testing.T) {
 		// At least one command must have a multiline response
 		switch cmdParts[0] {
 		case "FEAT":
-			mock.proto.Writer.PrintfLine("211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n SIZE\r\n211 End")
+			mock.proto.Writer.PrintfLine("211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n211 End")
 		case "USER":
 			if cmdParts[1] == "anonymous" {
 				mock.proto.Writer.PrintfLine("331 Please send your password")
@@ -196,6 +196,15 @@ func (mock *ftpMock) listen(t *testing.T) {
 			mock.proto.Writer.PrintfLine("350 Restarting at %s. Send STORE or RETRIEVE to initiate transfer", cmdParts[1])
 		case "NOOP":
 			mock.proto.Writer.PrintfLine("200 NOOP ok.")
+		case "OPTS":
+			if len(cmdParts) != 3 {
+				mock.proto.Writer.PrintfLine("500 wrong number of arguments")
+				break
+			}
+			if (strings.Join(cmdParts[1:], " ")) == "UTF8 ON" {
+				mock.proto.Writer.PrintfLine("200 OK, UTF-8 enabled")
+				break
+			}
 		case "REIN":
 			mock.proto.Writer.PrintfLine("220 Logged out")
 		case "QUIT":
@@ -319,7 +328,7 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 
 // Helper to close a client connected to a mock server
 func closeConn(t *testing.T, mock *ftpMock, c *ServerConn, commands []string) {
-	expected := []string{"FEAT", "USER", "PASS", "TYPE"}
+	expected := []string{"FEAT", "USER", "PASS", "TYPE", "OPTS"}
 	expected = append(expected, commands...)
 	expected = append(expected, "QUIT")
 
