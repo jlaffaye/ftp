@@ -650,6 +650,11 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	_, err = io.Copy(conn, r)
 	conn.Close()
 	if err != nil {
+		// if the upload failed we still need to try to read the server
+		// response otherwise if the failure is not due to a connection problem,
+		// for example the server denied the upload for quota limits, we miss
+		// the response and we cannot use the connection to send other commands
+		c.conn.ReadResponse(StatusClosingDataConnection)
 		return err
 	}
 
@@ -671,6 +676,8 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 	_, err = io.Copy(conn, r)
 	conn.Close()
 	if err != nil {
+		// see the comment for StorFrom above
+		c.conn.ReadResponse(StatusClosingDataConnection)
 		return err
 	}
 
