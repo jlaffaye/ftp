@@ -55,6 +55,7 @@ type dialOptions struct {
 	conn        net.Conn
 	disableEPSV bool
 	disableUTF8 bool
+	disableMLSD bool
 	location    *time.Location
 	debugOutput io.Writer
 	dialFunc    func(network, address string) (net.Conn, error)
@@ -175,6 +176,16 @@ func DialWithDisabledUTF8(disabled bool) DialOption {
 	}}
 }
 
+// DialWithDisabledMLSD returns a DialOption that configures the ServerConn with MLSD option disabled
+//
+// This is useful for servers which advertise MLSD (eg some versions
+// of Serv-U) but don't support it properly.
+func DialWithDisabledMLSD(disabled bool) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.disableMLSD = disabled
+	}}
+}
+
 // DialWithLocation returns a DialOption that configures the ServerConn with specified time.Location
 // The location is used to parse the dates sent by the server which are in server's timezone
 func DialWithLocation(location *time.Location) DialOption {
@@ -278,7 +289,7 @@ func (c *ServerConn) Login(user, password string) error {
 	if err != nil {
 		return err
 	}
-	if _, mlstSupported := c.features["MLST"]; mlstSupported {
+	if _, mlstSupported := c.features["MLST"]; mlstSupported && !c.options.disableMLSD {
 		c.mlstSupported = true
 	}
 	if _, usePRET := c.features["PRET"]; usePRET {
