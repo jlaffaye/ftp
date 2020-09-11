@@ -663,10 +663,13 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	// the response and we cannot use the connection to send other commands.
 	// So we don't check io.Copy error and we return the error from
 	// ReadResponse so the user can see the real error
-	io.Copy(conn, r)
+	_, err = io.Copy(conn, r)
 	conn.Close()
 
-	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
+	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
+	if respErr != nil {
+		err = respErr
+	}
 	return err
 }
 
@@ -682,10 +685,13 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 	}
 
 	// see the comment for StorFrom above
-	io.Copy(conn, r)
+	_, err = io.Copy(conn, r)
 	conn.Close()
 
-	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
+	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
+	if respErr != nil {
+		err = respErr
+	}
 	return err
 }
 
