@@ -135,16 +135,6 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		c.conn = textproto.NewConn(do.wrapConn(tconn))
 	}
 
-	err = c.feat()
-	if err != nil {
-		c.Quit()
-		return nil, err
-	}
-
-	if _, mlstSupported := c.features["MLST"]; mlstSupported {
-		c.mlstSupported = true
-	}
-
 	return c, nil
 }
 
@@ -280,6 +270,15 @@ func (c *ServerConn) Login(user, password string) error {
 		}
 	default:
 		return errors.New(message)
+	}
+
+	// Probe features
+	err = c.feat()
+	if err != nil {
+		return err
+	}
+	if _, mlstSupported := c.features["MLST"]; mlstSupported {
+		c.mlstSupported = true
 	}
 
 	// Switch to binary mode
