@@ -177,11 +177,9 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 		},
 	}
 
-	result := w.Next()
-	result = w.Next()
-
-	assert.Equal(true, result, "Result should return true")
-	assert.Equal(0, len(w.stack))
+	assert.True(w.Next())
+	assert.True(w.Next())
+	assert.Empty(w.stack)
 	assert.Equal("file", w.cur.entry.Name)
 }
 

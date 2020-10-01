@@ -63,7 +63,7 @@ func parseRFC3659ListLine(line string, now time.Time, loc *time.Location) (*Entr
 				e.Type = EntryTypeFile
 			}
 		case "size":
-			e.setSize(value)
+			return e, e.setSize(value)
 		}
 	}
 	return e, nil

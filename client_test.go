@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -227,10 +229,12 @@ func TestTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	assert := assert.New(t)
 
-	c, err := DialTimeout("localhost:2121", 1*time.Second)
-	if err == nil {
-		t.Fatal("expected timeout, got nil error")
+	c, err := DialTimeout("localhost:2121", time.Second)
+	if assert.Error(err) {
+		assert.Contains(err.Error(), "connection refused")
+	} else {
 		c.Quit()
 	}
 }
