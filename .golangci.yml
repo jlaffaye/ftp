@@ -1,0 +1,8 @@
+issues:
+  exclude:
+  - Error return value of `c.Quit` is not checked
+
+  exclude-rules:
+  - path: _test\.go
+    linters:
+    - errcheck
