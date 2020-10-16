@@ -116,36 +116,39 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 		return e, nil
 	}
 
-	// Read two more fields
-	fields = append(fields, scanner.NextFields(2)...)
+	// Read left fields, usually not exceed 20 fields
+	fields = append(fields, scanner.NextFields(20)...)
 	if len(fields) < 8 {
 		return nil, errUnsupportedListLine
 	}
 
+	fieldsLen := len(fields)
+	timeBeginIndex, timeEndIndex := fieldsLen-4, fieldsLen-1
 	e := &Entry{
-		Name: scanner.Remaining(),
+		Name: fields[fieldsLen-1],
 	}
 	switch fields[0][0] {
 	case '-':
 		e.Type = EntryTypeFile
-		if err := e.setSize(fields[4]); err != nil {
+		if err := e.setSize(fields[fieldsLen-5]); err != nil {
 			return nil, err
 		}
 	case 'd':
 		e.Type = EntryTypeFolder
 	case 'l':
 		e.Type = EntryTypeLink
+		timeBeginIndex, timeEndIndex = fieldsLen-6, fieldsLen-3
 
 		// Split link name and target
-		if i := strings.Index(e.Name, " -> "); i > 0 {
-			e.Target = e.Name[i+4:]
-			e.Name = e.Name[:i]
+		if fields[fieldsLen-2] == "->" {
+			e.Target = fields[fieldsLen-2]
+			e.Name = fields[fieldsLen-3]
 		}
 	default:
 		return nil, errUnknownListEntryType
 	}
 
-	if err := e.setTime(fields[5:8], now, loc); err != nil {
+	if err := e.setTime(fields[timeBeginIndex:timeEndIndex], now, loc); err != nil {
 		return nil, err
 	}
 
