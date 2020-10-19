@@ -38,6 +38,7 @@ type ServerConn struct {
 	features      map[string]string
 	skipEPSV      bool
 	mlstSupported bool
+	usePRET       bool
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -280,6 +281,9 @@ func (c *ServerConn) Login(user, password string) error {
 	if _, mlstSupported := c.features["MLST"]; mlstSupported {
 		c.mlstSupported = true
 	}
+	if _, usePRET := c.features["PRET"]; usePRET {
+		c.usePRET = true
+	}
 
 	// Switch to binary mode
 	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
@@ -486,6 +490,15 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 // cmdDataConnFrom executes a command which require a FTP data connection.
 // Issues a REST FTP command to specify the number of bytes to skip for the transfer.
 func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (net.Conn, error) {
+	// If server requires PRET send the PRET command to warm it up
+	// See: https://tools.ietf.org/html/draft-dd-pret-00
+	if c.usePRET {
+		_, _, err := c.cmd(-1, "PRET "+format, args...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	conn, err := c.openDataConn()
 	if err != nil {
 		return nil, err
