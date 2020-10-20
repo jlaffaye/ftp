@@ -104,11 +104,11 @@ func TestEmptyStackReturnsFalse(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	mock, err := newFtpMock(t, "127.0.0.1")
-	require.NotNil(err)
+	require.Nil(err)
 	defer mock.Close()
 
 	c, cErr := Connect(mock.Addr())
-	require.NotNil(cErr)
+	require.Nil(cErr)
 
 	w := c.Walk("/root")
 
@@ -136,11 +136,11 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	mock, err := newFtpMock(t, "127.0.0.1")
-	require.NotNil(err)
+	require.Nil(err)
 	defer mock.Close()
 
 	c, cErr := Connect(mock.Addr())
-	require.NotNil(cErr)
+	require.Nil(cErr)
 
 	w := c.Walk("/root")
 	w.cur = &item{
