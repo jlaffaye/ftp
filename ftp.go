@@ -381,53 +381,48 @@ func (c *ServerConn) setUTF8() error {
 func (c *ServerConn) epsv() (port int, err error) {
 	_, line, err := c.cmd(StatusExtendedPassiveMode, "EPSV")
 	if err != nil {
-		return
+		return 0, err
 	}
 
 	start := strings.Index(line, "|||")
 	end := strings.LastIndex(line, "|")
 	if start == -1 || end == -1 {
-		err = errors.New("invalid EPSV response format")
-		return
+		return 0, errors.New("invalid EPSV response format")
 	}
 	port, err = strconv.Atoi(line[start+3 : end])
-	return
+	return port, err
 }
 
 // pasv issues a "PASV" command to get a port number for a data connection.
 func (c *ServerConn) pasv() (host string, port int, err error) {
 	_, line, err := c.cmd(StatusPassiveMode, "PASV")
 	if err != nil {
-		return
+		return "", 0, err
 	}
 
 	// PASV response format : 227 Entering Passive Mode (h1,h2,h3,h4,p1,p2).
 	start := strings.Index(line, "(")
 	end := strings.LastIndex(line, ")")
 	if start == -1 || end == -1 {
-		err = errors.New("invalid PASV response format")
-		return
+		return "", 0, errors.New("invalid PASV response format")
 	}
 
 	// We have to split the response string
 	pasvData := strings.Split(line[start+1:end], ",")
 
 	if len(pasvData) < 6 {
-		err = errors.New("invalid PASV response format")
-		return
+		return "", 0, errors.New("invalid PASV response format")
 	}
 
 	// Let's compute the port number
-	portPart1, err1 := strconv.Atoi(pasvData[4])
-	if err1 != nil {
-		err = err1
-		return
+	portPart1, err := strconv.Atoi(pasvData[4])
+	if err != nil {
+		return "", 0, err
 	}
 
-	portPart2, err2 := strconv.Atoi(pasvData[5])
-	if err2 != nil {
-		err = err2
-		return
+	portPart2, err := strconv.Atoi(pasvData[5])
+	if err != nil {
+		return "", 0, err
 	}
 
 	// Recompose port
@@ -435,7 +430,7 @@ func (c *ServerConn) pasv() (host string, port int, err error) {
 
 	// Make the IP address to connect to
 	host = strings.Join(pasvData[0:4], ".")
-	return
+	return host, port, nil
 }
 
 // getDataConnPort returns a host, port for a new data connection
@@ -535,7 +530,7 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	conn, err := c.cmdDataConnFrom(0, "NLST %s", path)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	r := &Response{conn: conn, c: c}
@@ -548,7 +543,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	if err = scanner.Err(); err != nil {
 		return entries, err
 	}
-	return
+	return entries, nil
 }
 
 // List issues a LIST FTP command.
@@ -566,7 +561,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 
 	conn, err := c.cmdDataConnFrom(0, "%s %s", cmd, path)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	r := &Response{conn: conn, c: c}
@@ -583,7 +578,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	return
+	return entries, nil
 }
 
 // ChangeDir issues a CWD FTP command, which changes the current directory to
