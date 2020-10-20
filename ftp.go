@@ -484,7 +484,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 
 // cmdDataConnFrom executes a command which require a FTP data connection.
 // Issues a REST FTP command to specify the number of bytes to skip for the transfer.
-func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (net.Conn, error) {
+func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (conn net.Conn, err error) {
 	// If server requires PRET send the PRET command to warm it up
 	// See: https://tools.ietf.org/html/draft-dd-pret-00
 	if c.usePRET {
@@ -494,32 +494,29 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 		}
 	}
 
-	conn, err := c.openDataConn()
+	conn, err = c.openDataConn()
 	if err != nil {
 		return nil, err
 	}
+	defer handleCloseOnError(&err, conn.Close)
 
 	if offset != 0 {
 		_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
 		if err != nil {
-			conn.Close()
 			return nil, err
 		}
 	}
 
 	_, err = c.conn.Cmd(format, args...)
 	if err != nil {
-		conn.Close()
 		return nil, err
 	}
 
 	code, msg, err := c.conn.ReadResponse(-1)
 	if err != nil {
-		conn.Close()
 		return nil, err
 	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend {
-		conn.Close()
 		return nil, &textproto.Error{Code: code, Msg: msg}
 	}
 
@@ -534,7 +531,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	}
 
 	r := &Response{conn: conn, c: c}
-	defer r.Close()
+	defer handleClose(&err, r.Close)
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -565,7 +562,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	}
 
 	r := &Response{conn: conn, c: c}
-	defer r.Close()
+	defer handleClose(&err, r.Close)
 
 	scanner := bufio.NewScanner(r)
 	now := time.Now()
@@ -670,14 +667,11 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	// the response and we cannot use the connection to send other commands.
 	// So we don't check io.Copy error and we return the error from
 	// ReadResponse so the user can see the real error
-	_, err = io.Copy(conn, r)
-	conn.Close()
+	_, err1 := io.Copy(conn, r)
+	err2 := conn.Close()
 
-	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
-	if respErr != nil {
-		err = respErr
-	}
-	return err
+	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
+	return mergeErrors(err, err2, err1)
 }
 
 // Append issues a APPE FTP command to store a file to the remote FTP server.
@@ -692,14 +686,11 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 	}
 
 	// see the comment for StorFrom above
-	_, err = io.Copy(conn, r)
-	conn.Close()
+	_, err1 := io.Copy(conn, r)
+	err2 := conn.Close()
 
-	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
-	if respErr != nil {
-		err = respErr
-	}
-	return err
+	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
+	return mergeErrors(err, err2, err1)
 }
 
 // Rename renames a file on the remote FTP server.
@@ -806,8 +797,8 @@ func (c *ServerConn) Logout() error {
 // Quit issues a QUIT FTP command to properly close the connection from the
 // remote FTP server.
 func (c *ServerConn) Quit() error {
-	c.conn.Cmd("QUIT")
-	return c.conn.Close()
+	_, err := c.conn.Cmd("QUIT")
+	return mergeErrors(c.conn.Close(), err)
 }
 
 // Read implements the io.Reader interface on a FTP data connection.
@@ -821,13 +812,10 @@ func (r *Response) Close() error {
 	if r.closed {
 		return nil
 	}
-	err := r.conn.Close()
-	_, _, err2 := r.c.conn.ReadResponse(StatusClosingDataConnection)
-	if err2 != nil {
-		err = err2
-	}
 	r.closed = true
-	return err
+	err1 := r.conn.Close()
+	_, _, err := r.c.conn.ReadResponse(StatusClosingDataConnection)
+	return mergeErrors(err, err1)
 }
 
 // SetDeadline sets the deadlines associated with the connection.
