@@ -328,7 +328,7 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 
 // Helper to close a client connected to a mock server
 func closeConn(t *testing.T, mock *ftpMock, c *ServerConn, commands []string) {
-	expected := []string{"FEAT", "USER", "PASS", "TYPE", "OPTS"}
+	expected := []string{"USER", "PASS", "FEAT", "TYPE", "OPTS"}
 	expected = append(expected, commands...)
 	expected = append(expected, "QUIT")
 
