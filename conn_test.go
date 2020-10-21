@@ -203,7 +203,6 @@ func (mock *ftpMock) listen(t *testing.T) {
 			}
 			if (strings.Join(cmdParts[1:], " ")) == "UTF8 ON" {
 				mock.proto.Writer.PrintfLine("200 OK, UTF-8 enabled")
-				break
 			}
 		case "REIN":
 			mock.proto.Writer.PrintfLine("220 Logged out")

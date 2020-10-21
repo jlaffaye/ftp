@@ -178,6 +178,8 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 	}
 
 	result := w.Next()
+	assert.Equal(true, result, "Result should return true")
+
 	result = w.Next()
 
 	assert.Equal(true, result, "Result should return true")

@@ -228,10 +228,9 @@ func TestTimeout(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c, err := DialTimeout("localhost:2121", 1*time.Second)
-	if err == nil {
-		t.Fatal("expected timeout, got nil error")
+	if c, err := DialTimeout("localhost:2121", 1*time.Second); err == nil {
 		c.Quit()
+		t.Fatal("expected timeout, got nil error")
 	}
 }
 
