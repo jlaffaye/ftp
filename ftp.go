@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/textproto"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -775,6 +776,26 @@ func (c *ServerConn) RemoveDirRecur(path string) error {
 // remote FTP server.
 func (c *ServerConn) MakeDir(path string) error {
 	_, _, err := c.cmd(StatusPathCreated, "MKD %s", path)
+	return err
+}
+
+// MakeDirRecur issues multiple MKD FTP commands to create the
+// specified directory tree on the remote FTP server.
+func (c *ServerConn) MakeDirRecur(path string) error {
+	var dirs []string = strings.Split(path, string(filepath.Separator))
+	var err error
+
+	for i := range dirs {
+		// Using filepath.Separator here can cause issues when passing
+		// a Windows path to a Linux FTP server. Not sure if the same
+		// happens for Linux path on a Windows FTP server. This
+		// probably needs tested.
+		err = c.MakeDir(strings.Join(dirs[0:i+1], "/"))
+	}
+
+	// We only care about the last error b/c an error is thrown if the
+	// directory already exists and that is bound to happen when
+	// creating a directory tree.
 	return err
 }
 

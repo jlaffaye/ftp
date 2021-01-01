@@ -1,4 +1,4 @@
-module github.com/jlaffaye/ftp
+module github.com/mjwhitta/ftp
 
 go 1.14
 
