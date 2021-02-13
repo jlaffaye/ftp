@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -298,5 +300,22 @@ func TestMissingFolderDeleteDirRecur(t *testing.T) {
 	}
 
 	// Wait for the connection to close
+	mock.Wait()
+}
+
+func TestListCurrentDir(t *testing.T) {
+	mock, c := openConn(t, "127.0.0.1")
+
+	_, err := c.List("")
+	assert.NoError(t, err)
+	assert.Equal(t, "LIST", mock.lastFull, "LIST must not have a trailing whitespace")
+
+	_, err = c.NameList("")
+	assert.NoError(t, err)
+	assert.Equal(t, "NLST", mock.lastFull, "NLST must not have a trailing whitespace")
+
+	err = c.Quit()
+	assert.NoError(t, err)
+
 	mock.Wait()
 }
