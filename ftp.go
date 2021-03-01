@@ -681,9 +681,30 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	// the response and we cannot use the connection to send other commands.
 	// So we don't check io.Copy error and we return the error from
 	// ReadResponse so the user can see the real error
-	_, err = io.Copy(conn, r)
-	conn.Close()
+	var n int64
+	n, err = io.Copy(conn, r)
 
+	// If we wrote no bytes but got no error, make sure we call
+	// tls.Handshake on the connection as it won't get called
+	// unless Write() is called.
+	//
+	// ProFTP doesn't like this and returns "Unable to build data
+	// connection: Operation not permitted" when trying to upload
+	// an empty file without this.
+	if n == 0 && err == nil {
+		if do, ok := conn.(interface{ Handshake() error }); ok {
+			err = do.Handshake()
+		}
+	}
+
+	// Use io.Copy or Handshake error in preference to this one
+	closeErr := conn.Close()
+	if err == nil {
+		err = closeErr
+	}
+
+	// Read the response and use this error in preference to
+	// previous errors
 	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
 	if respErr != nil {
 		err = respErr
