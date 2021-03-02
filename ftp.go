@@ -539,7 +539,11 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 
 // NameList issues an NLST FTP command.
 func (c *ServerConn) NameList(path string) (entries []string, err error) {
-	conn, err := c.cmdDataConnFrom(0, "NLST %s", path)
+	space := " "
+	if path == "" {
+		space = ""
+	}
+	conn, err := c.cmdDataConnFrom(0, "NLST%s%s", space, path)
 	if err != nil {
 		return nil, err
 	}
@@ -570,7 +574,11 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		parser = parseListLine
 	}
 
-	conn, err := c.cmdDataConnFrom(0, "%s %s", cmd, path)
+	space := " "
+	if path == "" {
+		space = ""
+	}
+	conn, err := c.cmdDataConnFrom(0, "%s%s%s", cmd, space, path)
 	if err != nil {
 		return nil, err
 	}

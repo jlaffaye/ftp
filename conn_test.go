@@ -18,6 +18,7 @@ type ftpMock struct {
 	listener *net.TCPListener
 	proto    *textproto.Conn
 	commands []string // list of received commands
+	lastFull string   // full last command
 	rest     int
 	fileCont *bytes.Buffer
 	dataConn *mockDataConn
@@ -66,6 +67,7 @@ func (mock *ftpMock) listen(t *testing.T) {
 
 	for {
 		fullCommand, _ := mock.proto.ReadLine()
+		mock.lastFull = fullCommand
 
 		cmdParts := strings.Split(fullCommand, " ")
 
