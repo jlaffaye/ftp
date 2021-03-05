@@ -36,7 +36,7 @@ func (w *Walker) Next() bool {
 	if w.descend && w.cur.entry.Type == EntryTypeFolder {
 		entries, err := w.serverConn.List(w.cur.path)
 
-		// an error occured, drop out and stop walking
+		// an error occurred, drop out and stop walking
 		if err != nil {
 			w.cur.err = err
 			return false
