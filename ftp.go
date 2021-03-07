@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
@@ -124,7 +125,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 
 	_, _, err := c.conn.ReadResponse(StatusReady)
 	if err != nil {
-		c.Quit()
+		_ = c.Quit()
 		return nil, err
 	}
 
@@ -308,8 +309,12 @@ func (c *ServerConn) Login(user, password string) error {
 
 	// If using implicit TLS, make data connections also use TLS
 	if c.options.tlsConfig != nil {
-		c.cmd(StatusCommandOK, "PBSZ 0")
-		c.cmd(StatusCommandOK, "PROT P")
+		if _, _, err := c.cmd(StatusCommandOK, "PBSZ 0"); err != nil {
+			return err
+		}
+		if _, _, err := c.cmd(StatusCommandOK, "PROT P"); err != nil {
+			return err
+		}
 	}
 
 	return err
@@ -513,24 +518,24 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	if offset != 0 {
 		_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return nil, err
 		}
 	}
 
 	_, err = c.conn.Cmd(format, args...)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	code, msg, err := c.conn.ReadResponse(-1)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend {
-		conn.Close()
+		_ = conn.Close()
 		return nil, &textproto.Error{Code: code, Msg: msg}
 	}
 
@@ -549,16 +554,20 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	}
 
 	r := &Response{conn: conn, c: c}
-	defer r.Close()
+	defer func() {
+		errClose := r.Close()
+		if err == nil {
+			err = errClose
+		}
+	}()
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		entries = append(entries, scanner.Text())
 	}
-	if err = scanner.Err(); err != nil {
-		return entries, err
-	}
-	return entries, nil
+
+	err = scanner.Err()
+	return entries, err
 }
 
 // List issues a LIST FTP command.
@@ -584,7 +593,12 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	}
 
 	r := &Response{conn: conn, c: c}
-	defer r.Close()
+	defer func() {
+		errClose := r.Close()
+		if err == nil {
+			err = errClose
+		}
+	}()
 
 	scanner := bufio.NewScanner(r)
 	now := time.Now()
@@ -594,10 +608,9 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 			entries = append(entries, entry)
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return entries, nil
+
+	err = scanner.Err()
+	return entries, err
 }
 
 // ChangeDir issues a CWD FTP command, which changes the current directory to
@@ -733,12 +746,17 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 
 	// see the comment for StorFrom above
 	_, err = io.Copy(conn, r)
-	conn.Close()
+	errClose := conn.Close()
 
 	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
 	if respErr != nil {
 		err = respErr
 	}
+
+	if err == nil {
+		err = errClose
+	}
+
 	return err
 }
 
@@ -846,8 +864,17 @@ func (c *ServerConn) Logout() error {
 // Quit issues a QUIT FTP command to properly close the connection from the
 // remote FTP server.
 func (c *ServerConn) Quit() error {
-	c.conn.Cmd("QUIT")
-	return c.conn.Close()
+	_, errQuit := c.conn.Cmd("QUIT")
+	err := c.conn.Close()
+
+	if errQuit != nil {
+		if err != nil {
+			return fmt.Errorf("error while quitting: %s: %w", errQuit, err)
+		}
+		return errQuit
+	}
+
+	return err
 }
 
 // Read implements the io.Reader interface on a FTP data connection.

@@ -160,7 +160,9 @@ func TestSettime(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.line, func(t *testing.T) {
 			entry := &Entry{}
-			entry.setTime(strings.Fields(test.line), now, time.UTC)
+			if err := entry.setTime(strings.Fields(test.line), now, time.UTC); err != nil {
+				t.Fatal(err)
+			}
 
 			assert.Equal(t, test.expected, entry.Time)
 		})
