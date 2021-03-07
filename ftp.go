@@ -309,10 +309,10 @@ func (c *ServerConn) Login(user, password string) error {
 
 	// If using implicit TLS, make data connections also use TLS
 	if c.options.tlsConfig != nil {
-		if _, _, err := c.cmd(StatusCommandOK, "PBSZ 0"); err != nil {
+		if _, _, err = c.cmd(StatusCommandOK, "PBSZ 0"); err != nil {
 			return err
 		}
-		if _, _, err := c.cmd(StatusCommandOK, "PROT P"); err != nil {
+		if _, _, err = c.cmd(StatusCommandOK, "PROT P"); err != nil {
 			return err
 		}
 	}
@@ -516,7 +516,7 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	}
 
 	if offset != 0 {
-		_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
+		_, _, err = c.cmd(StatusRequestFilePending, "REST %d", offset)
 		if err != nil {
 			_ = conn.Close()
 			return nil, err
@@ -603,8 +603,8 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	scanner := bufio.NewScanner(r)
 	now := time.Now()
 	for scanner.Scan() {
-		entry, err := parser(scanner.Text(), now, c.options.location)
-		if err == nil {
+		entry, errParse := parser(scanner.Text(), now, c.options.location)
+		if errParse == nil {
 			entries = append(entries, entry)
 		}
 	}

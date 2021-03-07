@@ -73,9 +73,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		buf, err := ioutil.ReadAll(r)
+		buf, errRead := ioutil.ReadAll(r)
 		if err != nil {
-			t.Error(err)
+			t.Error(errRead)
 		}
 		if string(buf) != testData {
 			t.Errorf("'%s'", buf)
@@ -90,7 +90,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Error(err)
 	} else {
 		r.SetDeadline(time.Now())
-		_, err := ioutil.ReadAll(r)
+		_, err = ioutil.ReadAll(r)
 		if err == nil {
 			t.Error("deadline should have caused error")
 		} else if !strings.HasSuffix(err.Error(), "i/o timeout") {
@@ -104,9 +104,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		buf, err := ioutil.ReadAll(r)
-		if err != nil {
-			t.Error(err)
+		buf, errRead := ioutil.ReadAll(r)
+		if errRead != nil {
+			t.Error(errRead)
 		}
 		expected := testData[5:]
 		if string(buf) != expected {
@@ -126,9 +126,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		buf, err := ioutil.ReadAll(r)
+		buf, errRead := ioutil.ReadAll(r)
 		if err != nil {
-			t.Error(err)
+			t.Error(errRead)
 		}
 		if string(buf) != testData+testData {
 			t.Errorf("'%s'", buf)
@@ -193,7 +193,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		}
 	}
 
-	if err := c.Quit(); err != nil {
+	if err = c.Quit(); err != nil {
 		t.Fatal(err)
 	}
 
