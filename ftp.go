@@ -27,6 +27,9 @@ const (
 	EntryTypeLink
 )
 
+// Time format used by the MDTM and MFMT commands
+const timeFormat = "20060102150405"
+
 // ServerConn represents the connection to a remote FTP server.
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
@@ -39,6 +42,9 @@ type ServerConn struct {
 	features      map[string]string
 	skipEPSV      bool
 	mlstSupported bool
+	mfmtSupported bool
+	mdtmSupported bool
+	mdtmCanWrite  bool
 	usePRET       bool
 }
 
@@ -57,6 +63,7 @@ type dialOptions struct {
 	disableEPSV bool
 	disableUTF8 bool
 	disableMLSD bool
+	writingMDTM bool
 	location    *time.Location
 	debugOutput io.Writer
 	dialFunc    func(network, address string) (net.Conn, error)
@@ -187,6 +194,18 @@ func DialWithDisabledMLSD(disabled bool) DialOption {
 	}}
 }
 
+// DialWithWritingMDTM returns a DialOption making ServerConn use MDTM to set file time
+//
+// This option addresses a quirk in the VsFtpd server which doesn't support
+// the MFMT command for setting file time like other servers but by default
+// uses the MDTM command with non-standard arguments for that.
+// See "mdtm_write" in https://security.appspot.com/vsftpd/vsftpd_conf.html
+func DialWithWritingMDTM(enabled bool) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.writingMDTM = enabled
+	}}
+}
+
 // DialWithLocation returns a DialOption that configures the ServerConn with specified time.Location
 // The location is used to parse the dates sent by the server which are in server's timezone
 func DialWithLocation(location *time.Location) DialOption {
@@ -293,9 +312,11 @@ func (c *ServerConn) Login(user, password string) error {
 	if _, mlstSupported := c.features["MLST"]; mlstSupported && !c.options.disableMLSD {
 		c.mlstSupported = true
 	}
-	if _, usePRET := c.features["PRET"]; usePRET {
-		c.usePRET = true
-	}
+	_, c.usePRET = c.features["PRET"]
+
+	_, c.mfmtSupported = c.features["MFMT"]
+	_, c.mdtmSupported = c.features["MDTM"]
+	c.mdtmCanWrite = c.mdtmSupported && c.options.writingMDTM
 
 	// Switch to binary mode
 	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
@@ -613,6 +634,12 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	return entries, err
 }
 
+// IsTimePreciseInList returns true if client and server support the MLSD
+// command so List can return time with 1-second precision for all files.
+func (c *ServerConn) IsTimePreciseInList() bool {
+	return c.mlstSupported
+}
+
 // ChangeDir issues a CWD FTP command, which changes the current directory to
 // the specified path.
 func (c *ServerConn) ChangeDir(path string) error {
@@ -654,6 +681,49 @@ func (c *ServerConn) FileSize(path string) (int64, error) {
 	}
 
 	return strconv.ParseInt(msg, 10, 64)
+}
+
+// GetTime issues the MDTM FTP command to obtain the file modification time.
+// It returns a UTC time.
+func (c *ServerConn) GetTime(path string) (time.Time, error) {
+	var t time.Time
+	if !c.mdtmSupported {
+		return t, errors.New("GetTime is not supported")
+	}
+	_, msg, err := c.cmd(StatusFile, "MDTM %s", path)
+	if err != nil {
+		return t, err
+	}
+	return time.ParseInLocation(timeFormat, msg, time.UTC)
+}
+
+// IsGetTimeSupported allows library callers to check in advance that they
+// can use GetTime to get file time.
+func (c *ServerConn) IsGetTimeSupported() bool {
+	return c.mdtmSupported
+}
+
+// SetTime issues the MFMT FTP command to set the file modification time.
+// Also it can use a non-standard form of the MDTM command supported by
+// the VsFtpd server instead of MFMT for the same purpose.
+// See "mdtm_write" in https://security.appspot.com/vsftpd/vsftpd_conf.html
+func (c *ServerConn) SetTime(path string, t time.Time) (err error) {
+	utime := t.In(time.UTC).Format(timeFormat)
+	switch {
+	case c.mfmtSupported:
+		_, _, err = c.cmd(StatusFile, "MFMT %s %s", utime, path)
+	case c.mdtmCanWrite:
+		_, _, err = c.cmd(StatusFile, "MDTM %s %s", utime, path)
+	default:
+		err = errors.New("SetTime is not supported")
+	}
+	return
+}
+
+// IsSetTimeSupported allows library callers to check in advance that they
+// can use SetTime to set file time.
+func (c *ServerConn) IsSetTimeSupported() bool {
+	return c.mfmtSupported || c.mdtmCanWrite
 }
 
 // Retr issues a RETR FTP command to fetch the specified file from the remote

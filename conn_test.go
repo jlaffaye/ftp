@@ -11,10 +11,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 type ftpMock struct {
 	address  string
+	modtime  string // no-time, std-time, vsftpd
 	listener *net.TCPListener
 	proto    *textproto.Conn
 	commands []string // list of received commands
@@ -28,8 +30,15 @@ type ftpMock struct {
 // newFtpMock returns a mock implementation of a FTP server
 // For simplication, a mock instance only accepts a signle connection and terminates afer
 func newFtpMock(t *testing.T, address string) (*ftpMock, error) {
+	return newFtpMockExt(t, address, "no-time")
+}
+
+func newFtpMockExt(t *testing.T, address, modtime string) (*ftpMock, error) {
 	var err error
-	mock := &ftpMock{address: address}
+	mock := &ftpMock{
+		address: address,
+		modtime: modtime,
+	}
 
 	l, err := net.Listen("tcp", address+":0")
 	if err != nil {
@@ -77,7 +86,15 @@ func (mock *ftpMock) listen(t *testing.T) {
 		// At least one command must have a multiline response
 		switch cmdParts[0] {
 		case "FEAT":
-			mock.proto.Writer.PrintfLine("211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n211 End")
+			features := "211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n"
+			switch mock.modtime {
+			case "std-time":
+				features += " MDTM\r\n MFMT\r\n"
+			case "vsftpd":
+				features += " MDTM\r\n"
+			}
+			features += "211 End"
+			_ = mock.proto.Writer.PrintfLine(features)
 		case "USER":
 			if cmdParts[1] == "anonymous" {
 				mock.proto.Writer.PrintfLine("331 Please send your password")
@@ -196,6 +213,36 @@ func (mock *ftpMock) listen(t *testing.T) {
 			}
 			mock.rest = rest
 			mock.proto.Writer.PrintfLine("350 Restarting at %s. Send STORE or RETRIEVE to initiate transfer", cmdParts[1])
+		case "MDTM":
+			var answer string
+			switch {
+			case mock.modtime == "no-time":
+				answer = "500 Unknown command MDTM"
+			case len(cmdParts) == 3 && mock.modtime == "vsftpd":
+				answer = "213 UTIME OK"
+				_, err := time.ParseInLocation(timeFormat, cmdParts[1], time.UTC)
+				if err != nil {
+					answer = "501 Can't get a time stamp"
+				}
+			case len(cmdParts) == 2:
+				answer = "213 20201213202400"
+			default:
+				answer = "500 wrong number of arguments"
+			}
+			_ = mock.proto.Writer.PrintfLine(answer)
+		case "MFMT":
+			var answer string
+			switch {
+			case mock.modtime == "std-time" && len(cmdParts) == 3:
+				answer = "213 UTIME OK"
+				_, err := time.ParseInLocation(timeFormat, cmdParts[1], time.UTC)
+				if err != nil {
+					answer = "501 Can't get a time stamp"
+				}
+			default:
+				answer = "500 Unknown command MFMT"
+			}
+			_ = mock.proto.Writer.PrintfLine(answer)
 		case "NOOP":
 			mock.proto.Writer.PrintfLine("200 NOOP ok.")
 		case "OPTS":
@@ -307,7 +354,11 @@ func (mock *ftpMock) Close() {
 
 // Helper to return a client connected to a mock server
 func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *ServerConn) {
-	mock, err := newFtpMock(t, addr)
+	return openConnExt(t, addr, "no-time", options...)
+}
+
+func openConnExt(t *testing.T, addr, modtime string, options ...DialOption) (*ftpMock, *ServerConn) {
+	mock, err := newFtpMockExt(t, addr, modtime)
 	if err != nil {
 		t.Fatal(err)
 	}
