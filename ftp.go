@@ -369,6 +369,12 @@ func (c *ServerConn) setUTF8() error {
 		return nil
 	}
 
+	// Some server request for setting client type before OPTS UTF8
+	code, message, err := c.cmd(-1, "CLNT FTPClient")
+	if err != nil {
+		return err
+	}
+
 	code, message, err := c.cmd(-1, "OPTS UTF8 ON")
 	if err != nil {
 		return err
