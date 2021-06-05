@@ -375,7 +375,7 @@ func (c *ServerConn) setUTF8() error {
 		return err
 	}
 
-	code, message, err := c.cmd(-1, "OPTS UTF8 ON")
+	code, message, err = c.cmd(-1, "OPTS UTF8 ON")
 	if err != nil {
 		return err
 	}
