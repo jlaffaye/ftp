@@ -656,6 +656,16 @@ func (c *ServerConn) FileSize(path string) (int64, error) {
 	return strconv.ParseInt(msg, 10, 64)
 }
 
+// ModTime issues a MODTIME FTP command, which Returns the modtime of the file
+func (c *ServerConn) ModTime(path string) (string, error) {
+	_, msg, err := c.cmd(StatusFile, "MODTIME %s", path)
+	if err != nil {
+		return "", err
+	}
+
+	return msg, nil
+}
+
 // Retr issues a RETR FTP command to fetch the specified file from the remote
 // FTP server.
 //
