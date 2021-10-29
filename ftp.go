@@ -251,6 +251,14 @@ func (o *dialOptions) wrapConn(netConn net.Conn) io.ReadWriteCloser {
 	return newDebugWrapper(netConn, o.debugOutput)
 }
 
+func (o *dialOptions) wrapStream(rd io.ReadCloser) io.ReadCloser {
+	if o.debugOutput == nil {
+		return rd
+	}
+
+	return newStreamDebugWrapper(rd, o.debugOutput)
+}
+
 // Connect is an alias to Dial, for backward compatibility
 func Connect(addr string) (*ServerConn, error) {
 	return Dial(addr)
@@ -561,7 +569,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 		}
 	}()
 
-	scanner := bufio.NewScanner(r)
+	scanner := bufio.NewScanner(c.options.wrapStream(r))
 	for scanner.Scan() {
 		entries = append(entries, scanner.Text())
 	}
@@ -600,7 +608,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		}
 	}()
 
-	scanner := bufio.NewScanner(r)
+	scanner := bufio.NewScanner(c.options.wrapStream(r))
 	now := time.Now()
 	for scanner.Scan() {
 		entry, errParse := parser(scanner.Text(), now, c.options.location)
