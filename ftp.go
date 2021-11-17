@@ -32,7 +32,8 @@ const (
 // It is not safe to be called concurrently.
 type ServerConn struct {
 	options *dialOptions
-	conn    *textproto.Conn
+	conn    *textproto.Conn // connection wrapper for text protocol
+	netConn net.Conn        // underlying network connection
 	host    string
 
 	// Server capabilities discovered at runtime
@@ -60,6 +61,7 @@ type dialOptions struct {
 	location    *time.Location
 	debugOutput io.Writer
 	dialFunc    func(network, address string) (net.Conn, error)
+	shutTimeout time.Duration // time to wait for data connection closing status
 }
 
 // Entry describes a file and is returned by List().
@@ -120,6 +122,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		options:  do,
 		features: make(map[string]string),
 		conn:     textproto.NewConn(do.wrapConn(tconn)),
+		netConn:  tconn,
 		host:     remoteAddr.IP.String(),
 	}
 
@@ -145,6 +148,15 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 func DialWithTimeout(timeout time.Duration) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.dialer.Timeout = timeout
+	}}
+}
+
+// DialWithShutTimeout returns a DialOption that configures the ServerConn with
+// maximum time to wait for the data closing status on control connection
+// and nudging the control connection deadline before reading status.
+func DialWithShutTimeout(shutTimeout time.Duration) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.shutTimeout = shutTimeout
 	}}
 }
 
@@ -693,6 +705,24 @@ func (c *ServerConn) Stor(path string, r io.Reader) error {
 	return c.StorFrom(path, r, 0)
 }
 
+// checkDataShut reads the "closing data connection" status from the
+// control connection. It is called after transferring a piece of data
+// on the data connection during which the control connection was idle.
+// This may result in the idle timeout triggering on the control connection
+// right when we try to read the response.
+// The ShutTimeout dial option will rescue here. It will nudge the control
+// connection deadline right before checking the data closing status.
+func (c *ServerConn) checkDataShut() error {
+	if c.options.shutTimeout != 0 {
+		shutDeadline := time.Now().Add(c.options.shutTimeout)
+		if err := c.netConn.SetDeadline(shutDeadline); err != nil {
+			return err
+		}
+	}
+	_, _, err := c.conn.ReadResponse(StatusClosingDataConnection)
+	return err
+}
+
 // StorFrom issues a STOR FTP command to store a file to the remote FTP server.
 // Stor creates the specified file with the content of the io.Reader, writing
 // on the server will start at the given file offset.
@@ -734,7 +764,7 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 
 	// Read the response and use this error in preference to
 	// previous errors
-	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
+	respErr := c.checkDataShut()
 	if respErr != nil {
 		err = respErr
 	}
@@ -756,7 +786,7 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 	_, err = io.Copy(conn, r)
 	errClose := conn.Close()
 
-	_, _, respErr := c.conn.ReadResponse(StatusClosingDataConnection)
+	respErr := c.checkDataShut()
 	if respErr != nil {
 		err = respErr
 	}
@@ -897,7 +927,7 @@ func (r *Response) Close() error {
 		return nil
 	}
 	err := r.conn.Close()
-	_, _, err2 := r.c.conn.ReadResponse(StatusClosingDataConnection)
+	err2 := r.c.checkDataShut()
 	if err2 != nil {
 		err = err2
 	}
