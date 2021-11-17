@@ -319,3 +319,82 @@ func TestListCurrentDir(t *testing.T) {
 
 	mock.Wait()
 }
+
+func TestTimeUnsupported(t *testing.T) {
+	mock, c := openConnExt(t, "127.0.0.1", "no-time")
+
+	assert.False(t, c.mdtmSupported, "MDTM must NOT be supported")
+	assert.False(t, c.mfmtSupported, "MFMT must NOT be supported")
+
+	assert.False(t, c.IsGetTimeSupported(), "GetTime must NOT be supported")
+	assert.False(t, c.IsSetTimeSupported(), "SetTime must NOT be supported")
+
+	_, err := c.GetTime("file1")
+	assert.NotNil(t, err)
+
+	err = c.SetTime("file1", time.Now())
+	assert.NotNil(t, err)
+
+	assert.NoError(t, c.Quit())
+	mock.Wait()
+}
+
+func TestTimeStandard(t *testing.T) {
+	mock, c := openConnExt(t, "127.0.0.1", "std-time")
+
+	assert.True(t, c.mdtmSupported, "MDTM must be supported")
+	assert.True(t, c.mfmtSupported, "MFMT must be supported")
+
+	assert.True(t, c.IsGetTimeSupported(), "GetTime must be supported")
+	assert.True(t, c.IsSetTimeSupported(), "SetTime must be supported")
+
+	tm, err := c.GetTime("file1")
+	assert.NoError(t, err)
+	assert.False(t, tm.IsZero(), "GetTime must return valid time")
+
+	err = c.SetTime("file1", time.Now())
+	assert.NoError(t, err)
+
+	assert.NoError(t, c.Quit())
+	mock.Wait()
+}
+
+func TestTimeVsftpdPartial(t *testing.T) {
+	mock, c := openConnExt(t, "127.0.0.1", "vsftpd")
+
+	assert.True(t, c.mdtmSupported, "MDTM must be supported")
+	assert.False(t, c.mfmtSupported, "MFMT must NOT be supported")
+
+	assert.True(t, c.IsGetTimeSupported(), "GetTime must be supported")
+	assert.False(t, c.IsSetTimeSupported(), "SetTime must NOT be supported")
+
+	tm, err := c.GetTime("file1")
+	assert.NoError(t, err)
+	assert.False(t, tm.IsZero(), "GetTime must return valid time")
+
+	err = c.SetTime("file1", time.Now())
+	assert.NotNil(t, err)
+
+	assert.NoError(t, c.Quit())
+	mock.Wait()
+}
+
+func TestTimeVsftpdFull(t *testing.T) {
+	mock, c := openConnExt(t, "127.0.0.1", "vsftpd", DialWithWritingMDTM(true))
+
+	assert.True(t, c.mdtmSupported, "MDTM must be supported")
+	assert.False(t, c.mfmtSupported, "MFMT must NOT be supported")
+
+	assert.True(t, c.IsGetTimeSupported(), "GetTime must be supported")
+	assert.True(t, c.IsSetTimeSupported(), "SetTime must be supported")
+
+	tm, err := c.GetTime("file1")
+	assert.NoError(t, err)
+	assert.False(t, tm.IsZero(), "GetTime must return valid time")
+
+	err = c.SetTime("file1", time.Now())
+	assert.NoError(t, err)
+
+	assert.NoError(t, c.Quit())
+	mock.Wait()
+}
