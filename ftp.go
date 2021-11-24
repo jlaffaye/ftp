@@ -987,6 +987,11 @@ func (c *ServerConn) Quit() error {
 
 // Read implements the io.Reader interface on a FTP data connection.
 func (r *Response) Read(buf []byte) (int, error) {
+	duration := 5 * time.Second
+	if r.c.options.dialer.Timeout > time.Duration(0) {
+		duration = r.c.options.dialer.Timeout
+	}
+	r.conn.SetReadDeadline(time.Now().Add(duration))
 	return r.conn.Read(buf)
 }
 
