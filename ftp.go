@@ -56,19 +56,20 @@ type DialOption struct {
 
 // dialOptions contains all the options set by DialOption.setup
 type dialOptions struct {
-	context     context.Context
-	dialer      net.Dialer
-	tlsConfig   *tls.Config
-	explicitTLS bool
-	conn        net.Conn
-	disableEPSV bool
-	disableUTF8 bool
-	disableMLSD bool
-	writingMDTM bool
-	location    *time.Location
-	debugOutput io.Writer
-	dialFunc    func(network, address string) (net.Conn, error)
-	shutTimeout time.Duration // time to wait for data connection closing status
+	context      context.Context
+	dialer       net.Dialer
+	tlsConfig    *tls.Config
+	explicitTLS  bool
+	conn         net.Conn
+	disableEPSV  bool
+	disableUTF8  bool
+	disableMLSD  bool
+	writingMDTM  bool
+	location     *time.Location
+	dataConnHost string
+	debugOutput  io.Writer
+	dialFunc     func(network, address string) (net.Conn, error)
+	shutTimeout  time.Duration // time to wait for data connection closing status
 }
 
 // Entry describes a file and is returned by List().
@@ -121,16 +122,29 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		}
 	}
 
-	// Use the resolved IP address in case addr contains a domain name
-	// If we use the domain name, we might not resolve to the same IP.
-	remoteAddr := tconn.RemoteAddr().(*net.TCPAddr)
+	host := do.dataConnHost
+	if host == "" {
+		// Use the resolved IP address in case addr contains a domain name
+		// If we use the domain name, we might not resolve to the same IP.
+		remoteAddr := tconn.RemoteAddr().String()
+		if i := strings.IndexByte(remoteAddr, ':'); i > 0 {
+			host = remoteAddr[:i]
+		}
+	}
+	if host == "" {
+		// Use the host in original addr in case connection returned by dialer doesn't implement
+		// RemoteAddr() properly.
+		if i := strings.IndexByte(addr, ':'); i > 0 {
+			host = addr[:i]
+		}
+	}
 
 	c := &ServerConn{
 		options:  do,
 		features: make(map[string]string),
 		conn:     textproto.NewConn(do.wrapConn(tconn)),
 		netConn:  tconn,
-		host:     remoteAddr.IP.String(),
+		host:     host,
 	}
 
 	_, _, err := c.conn.ReadResponse(StatusReady)
@@ -301,6 +315,14 @@ func Connect(addr string) (*ServerConn, error) {
 // an authenticated user.
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	return Dial(addr, DialWithTimeout(timeout))
+}
+
+// DialWithDataConnHost returns a DialOption that configures the ServerConn to use the specific
+// value as data connection host for EPSV mode
+func DialWithDataConnHost(host string) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.dataConnHost = host
+	}}
 }
 
 // Login authenticates the client with specified user and password.
