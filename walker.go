@@ -84,7 +84,7 @@ func (w *Walker) Err() error {
 }
 
 // Stat returns info for the most recent file or directory
-// visited by a call to Step.
+// visited by a call to Next.
 func (w *Walker) Stat() *Entry {
 	return w.cur.entry
 }
