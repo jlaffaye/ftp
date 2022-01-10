@@ -71,14 +71,14 @@ func (w *Walker) Next() bool {
 	return true
 }
 
-//SkipDir tells the Next function to skip the currently processed directory
+// SkipDir tells the Next function to skip the currently processed directory
 func (w *Walker) SkipDir() {
 	w.descend = false
 }
 
-//Err returns the error, if any, for the most recent attempt by Next to
-//visit a file or a directory. If a directory has an error, the walker
-//will not descend in that directory
+// Err returns the error, if any, for the most recent attempt by Next to
+// visit a file or a directory. If a directory has an error, the walker
+// will not descend in that directory
 func (w *Walker) Err() error {
 	return w.cur.err
 }
