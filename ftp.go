@@ -40,7 +40,7 @@ type ServerConn struct {
 	host    string
 
 	// Server capabilities discovered at runtime
-	features      map[string]string
+	Features      map[string]string
 	skipEPSV      bool
 	mlstSupported bool
 	mfmtSupported bool
@@ -127,7 +127,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 
 	c := &ServerConn{
 		options:  do,
-		features: make(map[string]string),
+		Features: make(map[string]string),
 		conn:     textproto.NewConn(do.wrapConn(tconn)),
 		netConn:  tconn,
 		host:     remoteAddr.IP.String(),
@@ -182,7 +182,7 @@ func DialWithNetConn(conn net.Conn) DialOption {
 }
 
 // DialWithDisabledEPSV returns a DialOption that configures the ServerConn with EPSV disabled
-// Note that EPSV is only used when advertised in the server features.
+// Note that EPSV is only used when advertised in the server Features.
 func DialWithDisabledEPSV(disabled bool) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.disableEPSV = disabled
@@ -308,7 +308,7 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers
 // that allows anonymous read-only accounts.
 func (c *ServerConn) Login(user, password string) error {
-	code, message, err := c.cmd(-1, "USER %s", user)
+	code, message, err := c.Cmd(-1, "USER %s", user)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func (c *ServerConn) Login(user, password string) error {
 	switch code {
 	case StatusLoggedIn:
 	case StatusUserOK:
-		_, _, err = c.cmd(StatusLoggedIn, "PASS %s", password)
+		_, _, err = c.Cmd(StatusLoggedIn, "PASS %s", password)
 		if err != nil {
 			return err
 		}
@@ -324,22 +324,22 @@ func (c *ServerConn) Login(user, password string) error {
 		return errors.New(message)
 	}
 
-	// Probe features
+	// Probe Features
 	err = c.feat()
 	if err != nil {
 		return err
 	}
-	if _, mlstSupported := c.features["MLST"]; mlstSupported && !c.options.disableMLSD {
+	if _, mlstSupported := c.Features["MLST"]; mlstSupported && !c.options.disableMLSD {
 		c.mlstSupported = true
 	}
-	_, c.usePRET = c.features["PRET"]
+	_, c.usePRET = c.Features["PRET"]
 
-	_, c.mfmtSupported = c.features["MFMT"]
-	_, c.mdtmSupported = c.features["MDTM"]
+	_, c.mfmtSupported = c.Features["MFMT"]
+	_, c.mdtmSupported = c.Features["MDTM"]
 	c.mdtmCanWrite = c.mdtmSupported && c.options.writingMDTM
 
 	// Switch to binary mode
-	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
+	if _, _, err = c.Cmd(StatusCommandOK, "TYPE I"); err != nil {
 		return err
 	}
 
@@ -350,10 +350,10 @@ func (c *ServerConn) Login(user, password string) error {
 
 	// If using implicit TLS, make data connections also use TLS
 	if c.options.tlsConfig != nil {
-		if _, _, err = c.cmd(StatusCommandOK, "PBSZ 0"); err != nil {
+		if _, _, err = c.Cmd(StatusCommandOK, "PBSZ 0"); err != nil {
 			return err
 		}
-		if _, _, err = c.cmd(StatusCommandOK, "PROT P"); err != nil {
+		if _, _, err = c.Cmd(StatusCommandOK, "PROT P"); err != nil {
 			return err
 		}
 	}
@@ -363,7 +363,7 @@ func (c *ServerConn) Login(user, password string) error {
 
 // authTLS upgrades the connection to use TLS
 func (c *ServerConn) authTLS() error {
-	_, _, err := c.cmd(StatusAuthOK, "AUTH TLS")
+	_, _, err := c.Cmd(StatusAuthOK, "AUTH TLS")
 	return err
 }
 
@@ -371,7 +371,7 @@ func (c *ServerConn) authTLS() error {
 // the remote FTP server.
 // FEAT is described in RFC 2389
 func (c *ServerConn) feat() error {
-	code, message, err := c.cmd(-1, "FEAT")
+	code, message, err := c.Cmd(-1, "FEAT")
 	if err != nil {
 		return err
 	}
@@ -398,7 +398,7 @@ func (c *ServerConn) feat() error {
 			commandDesc = featureElements[1]
 		}
 
-		c.features[command] = commandDesc
+		c.Features[command] = commandDesc
 	}
 
 	return nil
@@ -406,11 +406,11 @@ func (c *ServerConn) feat() error {
 
 // setUTF8 issues an "OPTS UTF8 ON" command.
 func (c *ServerConn) setUTF8() error {
-	if _, ok := c.features["UTF8"]; !ok {
+	if _, ok := c.Features["UTF8"]; !ok {
 		return nil
 	}
 
-	code, message, err := c.cmd(-1, "OPTS UTF8 ON")
+	code, message, err := c.Cmd(-1, "OPTS UTF8 ON")
 	if err != nil {
 		return err
 	}
@@ -436,7 +436,7 @@ func (c *ServerConn) setUTF8() error {
 
 // epsv issues an "EPSV" command to get a port number for a data connection.
 func (c *ServerConn) epsv() (port int, err error) {
-	_, line, err := c.cmd(StatusExtendedPassiveMode, "EPSV")
+	_, line, err := c.Cmd(StatusExtendedPassiveMode, "EPSV")
 	if err != nil {
 		return 0, err
 	}
@@ -452,7 +452,7 @@ func (c *ServerConn) epsv() (port int, err error) {
 
 // pasv issues a "PASV" command to get a port number for a data connection.
 func (c *ServerConn) pasv() (host string, port int, err error) {
-	_, line, err := c.cmd(StatusPassiveMode, "PASV")
+	_, line, err := c.Cmd(StatusPassiveMode, "PASV")
 	if err != nil {
 		return "", 0, err
 	}
@@ -530,7 +530,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 
 // cmd is a helper function to execute a command and check for the expected FTP
 // return code
-func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int, string, error) {
+func (c *ServerConn) Cmd(expected int, format string, args ...interface{}) (int, string, error) {
 	_, err := c.conn.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -545,7 +545,7 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	// If server requires PRET send the PRET command to warm it up
 	// See: https://tools.ietf.org/html/draft-dd-pret-00
 	if c.usePRET {
-		_, _, err := c.cmd(-1, "PRET "+format, args...)
+		_, _, err := c.Cmd(-1, "PRET "+format, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -557,7 +557,7 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	}
 
 	if offset != 0 {
-		_, _, err = c.cmd(StatusRequestFilePending, "REST %d", offset)
+		_, _, err = c.Cmd(StatusRequestFilePending, "REST %d", offset)
 		if err != nil {
 			_ = conn.Close()
 			return nil, err
@@ -663,7 +663,7 @@ func (c *ServerConn) IsTimePreciseInList() bool {
 // ChangeDir issues a CWD FTP command, which changes the current directory to
 // the specified path.
 func (c *ServerConn) ChangeDir(path string) error {
-	_, _, err := c.cmd(StatusRequestedFileActionOK, "CWD %s", path)
+	_, _, err := c.Cmd(StatusRequestedFileActionOK, "CWD %s", path)
 	return err
 }
 
@@ -671,14 +671,14 @@ func (c *ServerConn) ChangeDir(path string) error {
 // directory to the parent directory.  This is similar to a call to ChangeDir
 // with a path set to "..".
 func (c *ServerConn) ChangeDirToParent() error {
-	_, _, err := c.cmd(StatusRequestedFileActionOK, "CDUP")
+	_, _, err := c.Cmd(StatusRequestedFileActionOK, "CDUP")
 	return err
 }
 
 // CurrentDir issues a PWD FTP command, which Returns the path of the current
 // directory.
 func (c *ServerConn) CurrentDir() (string, error) {
-	_, msg, err := c.cmd(StatusPathCreated, "PWD")
+	_, msg, err := c.Cmd(StatusPathCreated, "PWD")
 	if err != nil {
 		return "", err
 	}
@@ -695,7 +695,7 @@ func (c *ServerConn) CurrentDir() (string, error) {
 
 // FileSize issues a SIZE FTP command, which Returns the size of the file
 func (c *ServerConn) FileSize(path string) (int64, error) {
-	_, msg, err := c.cmd(StatusFile, "SIZE %s", path)
+	_, msg, err := c.Cmd(StatusFile, "SIZE %s", path)
 	if err != nil {
 		return 0, err
 	}
@@ -710,7 +710,7 @@ func (c *ServerConn) GetTime(path string) (time.Time, error) {
 	if !c.mdtmSupported {
 		return t, errors.New("GetTime is not supported")
 	}
-	_, msg, err := c.cmd(StatusFile, "MDTM %s", path)
+	_, msg, err := c.Cmd(StatusFile, "MDTM %s", path)
 	if err != nil {
 		return t, err
 	}
@@ -731,9 +731,9 @@ func (c *ServerConn) SetTime(path string, t time.Time) (err error) {
 	utime := t.In(time.UTC).Format(timeFormat)
 	switch {
 	case c.mfmtSupported:
-		_, _, err = c.cmd(StatusFile, "MFMT %s %s", utime, path)
+		_, _, err = c.Cmd(StatusFile, "MFMT %s %s", utime, path)
 	case c.mdtmCanWrite:
-		_, _, err = c.cmd(StatusFile, "MDTM %s %s", utime, path)
+		_, _, err = c.Cmd(StatusFile, "MDTM %s %s", utime, path)
 	default:
 		err = errors.New("SetTime is not supported")
 	}
@@ -870,19 +870,19 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 
 // Rename renames a file on the remote FTP server.
 func (c *ServerConn) Rename(from, to string) error {
-	_, _, err := c.cmd(StatusRequestFilePending, "RNFR %s", from)
+	_, _, err := c.Cmd(StatusRequestFilePending, "RNFR %s", from)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = c.cmd(StatusRequestedFileActionOK, "RNTO %s", to)
+	_, _, err = c.Cmd(StatusRequestedFileActionOK, "RNTO %s", to)
 	return err
 }
 
 // Delete issues a DELE FTP command to delete the specified file from the
 // remote FTP server.
 func (c *ServerConn) Delete(path string) error {
-	_, _, err := c.cmd(StatusRequestedFileActionOK, "DELE %s", path)
+	_, _, err := c.Cmd(StatusRequestedFileActionOK, "DELE %s", path)
 	return err
 }
 
@@ -929,14 +929,14 @@ func (c *ServerConn) RemoveDirRecur(path string) error {
 // MakeDir issues a MKD FTP command to create the specified directory on the
 // remote FTP server.
 func (c *ServerConn) MakeDir(path string) error {
-	_, _, err := c.cmd(StatusPathCreated, "MKD %s", path)
+	_, _, err := c.Cmd(StatusPathCreated, "MKD %s", path)
 	return err
 }
 
 // RemoveDir issues a RMD FTP command to remove the specified directory from
 // the remote FTP server.
 func (c *ServerConn) RemoveDir(path string) error {
-	_, _, err := c.cmd(StatusRequestedFileActionOK, "RMD %s", path)
+	_, _, err := c.Cmd(StatusRequestedFileActionOK, "RMD %s", path)
 	return err
 }
 
@@ -959,13 +959,13 @@ func (c *ServerConn) Walk(root string) *Walker {
 // NOOP has no effects and is usually used to prevent the remote FTP server to
 // close the otherwise idle connection.
 func (c *ServerConn) NoOp() error {
-	_, _, err := c.cmd(StatusCommandOK, "NOOP")
+	_, _, err := c.Cmd(StatusCommandOK, "NOOP")
 	return err
 }
 
 // Logout issues a REIN FTP command to logout the current user.
 func (c *ServerConn) Logout() error {
-	_, _, err := c.cmd(StatusReady, "REIN")
+	_, _, err := c.Cmd(StatusReady, "REIN")
 	return err
 }
 
