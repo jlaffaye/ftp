@@ -8,7 +8,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/textproto"
@@ -592,21 +591,23 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 		return nil, err
 	}
 
+	var errs *multierror.Error
+
 	r := &Response{conn: conn, c: c}
-	defer func() {
-		errClose := r.Close()
-		if err == nil {
-			err = errClose
-		}
-	}()
 
 	scanner := bufio.NewScanner(c.options.wrapStream(r))
 	for scanner.Scan() {
 		entries = append(entries, scanner.Text())
 	}
 
-	err = scanner.Err()
-	return entries, err
+	if err := scanner.Err(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+	if err := r.Close(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return entries, errs.ErrorOrNil()
 }
 
 // List issues a LIST FTP command.
@@ -631,25 +632,29 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		return nil, err
 	}
 
+	var errs *multierror.Error
+
 	r := &Response{conn: conn, c: c}
-	defer func() {
-		errClose := r.Close()
-		if err == nil {
-			err = errClose
-		}
-	}()
 
 	scanner := bufio.NewScanner(c.options.wrapStream(r))
 	now := time.Now()
 	for scanner.Scan() {
 		entry, errParse := parser(scanner.Text(), now, c.options.location)
-		if errParse == nil {
+		if errParse != nil {
+			errs = multierror.Append(errs, errParse)
+		} else {
 			entries = append(entries, entry)
 		}
 	}
 
-	err = scanner.Err()
-	return entries, err
+	if err := scanner.Err(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+	if err := r.Close(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return entries, errs.ErrorOrNil()
 }
 
 // IsTimePreciseInList returns true if client and server support the MLSD
@@ -802,22 +807,22 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 		return err
 	}
 
-	errs := &multierror.Error{}
+	var errs *multierror.Error
 
 	// if the upload fails we still need to try to read the server
 	// response otherwise if the failure is not due to a connection problem,
 	// for example the server denied the upload for quota limits, we miss
 	// the response and we cannot use the connection to send other commands.
 	if _, err := io.Copy(conn, r); err != nil {
-		multierror.Append(errs, err)
+		errs = multierror.Append(errs, err)
 	}
 
 	if err := conn.Close(); err != nil {
-		multierror.Append(errs, err)
+		errs = multierror.Append(errs, err)
 	}
 
 	if err := c.checkDataShut(); err != nil {
-		multierror.Append(errs, err)
+		errs = multierror.Append(errs, err)
 	}
 
 	return errs.ErrorOrNil()
@@ -834,20 +839,21 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 		return err
 	}
 
-	// see the comment for StorFrom above
-	_, err = io.Copy(conn, r)
-	errClose := conn.Close()
+	var errs *multierror.Error
 
-	respErr := c.checkDataShut()
-	if respErr != nil {
-		err = respErr
+	if _, err := io.Copy(conn, r); err != nil {
+		errs = multierror.Append(errs, err)
 	}
 
-	if err == nil {
-		err = errClose
+	if err := conn.Close(); err != nil {
+		errs = multierror.Append(errs, err)
 	}
 
-	return err
+	if err := c.checkDataShut(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return errs.ErrorOrNil()
 }
 
 // Rename renames a file on the remote FTP server.
@@ -954,17 +960,17 @@ func (c *ServerConn) Logout() error {
 // Quit issues a QUIT FTP command to properly close the connection from the
 // remote FTP server.
 func (c *ServerConn) Quit() error {
-	_, errQuit := c.conn.Cmd("QUIT")
-	err := c.conn.Close()
+	var errs *multierror.Error
 
-	if errQuit != nil {
-		if err != nil {
-			return fmt.Errorf("error while quitting: %s: %w", errQuit, err)
-		}
-		return errQuit
+	if _, err := c.conn.Cmd("QUIT"); err != nil {
+		errs = multierror.Append(errs, err)
 	}
 
-	return err
+	if err := c.conn.Close(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return errs.ErrorOrNil()
 }
 
 // Read implements the io.Reader interface on a FTP data connection.
@@ -978,13 +984,19 @@ func (r *Response) Close() error {
 	if r.closed {
 		return nil
 	}
-	err := r.conn.Close()
-	err2 := r.c.checkDataShut()
-	if err2 != nil {
-		err = err2
+
+	var errs *multierror.Error
+
+	if err := r.conn.Close(); err != nil {
+		errs = multierror.Append(errs, err)
 	}
+
+	if err := r.c.checkDataShut(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
 	r.closed = true
-	return err
+	return errs.ErrorOrNil()
 }
 
 // SetDeadline sets the deadlines associated with the connection.
