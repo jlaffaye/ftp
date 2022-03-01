@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 // EntryType describes the different types of an Entry.
@@ -804,6 +806,8 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 		return err
 	}
 
+	errs := &multierror.Error{}
+
 	// if the upload fails we still need to try to read the server
 	// response otherwise if the failure is not due to a connection problem,
 	// for example the server denied the upload for quota limits, we miss
@@ -822,23 +826,21 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	// an empty file without this.
 	if n == 0 && err == nil {
 		if do, ok := conn.(interface{ Handshake() error }); ok {
-			err = do.Handshake()
+			if err := do.Handshake(); err != nil {
+				multierror.Append(errs, err)
+			}
 		}
 	}
 
-	// Use io.Copy or Handshake error in preference to this one
-	closeErr := conn.Close()
-	if err == nil {
-		err = closeErr
+	if err := conn.Close(); err != nil {
+		multierror.Append(errs, err)
 	}
 
-	// Read the response and use this error in preference to
-	// previous errors
-	respErr := c.checkDataShut()
-	if respErr != nil {
-		err = respErr
+	if err := c.checkDataShut(); err != nil {
+		multierror.Append(errs, err)
 	}
-	return err
+
+	return errs.ErrorOrNil()
 }
 
 // Append issues a APPE FTP command to store a file to the remote FTP server.
