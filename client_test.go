@@ -89,7 +89,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		r.SetDeadline(time.Now())
+		if err := r.SetDeadline(time.Now()); err != nil {
+			t.Fatal(err)
+		}
 		_, err = ioutil.ReadAll(r)
 		if err == nil {
 			t.Error("deadline should have caused error")
@@ -231,7 +233,7 @@ func TestTimeout(t *testing.T) {
 	}
 
 	if c, err := DialTimeout("localhost:2121", 1*time.Second); err == nil {
-		c.Quit()
+		_ = c.Quit()
 		t.Fatal("expected timeout, got nil error")
 	}
 }
@@ -247,7 +249,11 @@ func TestWrongLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Quit()
+	defer func() {
+		if err := c.Quit(); err != nil {
+			t.Errorf("can not quit: %s", err)
+		}
+	}()
 
 	err = c.Login("zoo2Shia", "fei5Yix9")
 	if err == nil {
