@@ -2,7 +2,9 @@ package ftp
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"net/textproto"
 	"strings"
 	"testing"
@@ -403,4 +405,15 @@ func TestTimeVsftpdFull(t *testing.T) {
 
 	assert.NoError(t, c.Quit())
 	mock.Wait()
+}
+
+func TestDialWithDialFunc(t *testing.T) {
+	dialErr := fmt.Errorf("this is proof that dial function was called")
+
+	f := func(network, address string) (net.Conn, error) {
+		return nil, dialErr
+	}
+
+	_, err := Dial("bogus-address", DialWithDialFunc(f))
+	assert.Equal(t, dialErr, err)
 }
