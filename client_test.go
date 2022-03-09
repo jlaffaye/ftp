@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -27,7 +28,6 @@ func TestConnEPSV(t *testing.T) {
 }
 
 func testConn(t *testing.T, disableEPSV bool) {
-
 	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second), DialWithDisabledEPSV(disableEPSV))
 
 	err := c.Login("anonymous", "anonymous")
@@ -416,4 +416,23 @@ func TestDialWithDialFunc(t *testing.T) {
 
 	_, err := Dial("bogus-address", DialWithDialFunc(f))
 	assert.Equal(t, dialErr, err)
+}
+
+func TestDialWithDialer(t *testing.T) {
+	dialerCalled := false
+	dialer := net.Dialer{
+		Control: func(network, address string, c syscall.RawConn) error {
+			dialerCalled = true
+			return nil
+		},
+	}
+
+	mock, err := newFtpMock(t, "127.0.0.1")
+	assert.NoError(t, err)
+
+	c, err := Dial(mock.Addr(), DialWithDialer(dialer))
+	assert.NoError(t, err)
+	assert.NoError(t, c.Quit())
+
+	assert.Equal(t, true, dialerCalled)
 }
