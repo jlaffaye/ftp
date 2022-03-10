@@ -640,9 +640,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	now := time.Now()
 	for scanner.Scan() {
 		entry, errParse := parser(scanner.Text(), now, c.options.location)
-		if errParse != nil {
-			errs = multierror.Append(errs, errParse)
-		} else {
+		if errParse == nil {
 			entries = append(entries, entry)
 		}
 	}

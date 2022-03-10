@@ -173,7 +173,7 @@ func (mock *ftpMock) listen() {
 
 			mock.dataConn.Wait()
 			mock.printfLine("150 Opening ASCII mode data connection for file list")
-			mock.dataConn.write([]byte("-rw-r--r--   1 ftp      wheel           0 Jan 29 10:29 lo"))
+			mock.dataConn.write([]byte("-rw-r--r--   1 ftp      wheel           0 Jan 29 10:29 lo\r\ntotal 1"))
 			mock.printfLine("226 Transfer complete")
 			mock.closeDataConn()
 		case "NLST":
