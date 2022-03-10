@@ -2,7 +2,7 @@ package ftp
 
 import (
 	"bytes"
-	"errors"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/textproto"
@@ -14,44 +14,74 @@ import (
 	"time"
 )
 
+const (
+	certPem = `-----BEGIN CERTIFICATE-----
+MIIBhTCCASugAwIBAgIQIRi6zePL6mKjOipn+dNuaTAKBggqhkjOPQQDAjASMRAw
+DgYDVQQKEwdBY21lIENvMB4XDTE3MTAyMDE5NDMwNloXDTE4MTAyMDE5NDMwNlow
+EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABD0d
+7VNhbWvZLWPuj/RtHFjvtJBEwOkhbN/BnnE8rnZR8+sbwnc/KhCk3FhnpHZnQz7B
+5aETbbIgmuvewdjvSBSjYzBhMA4GA1UdDwEB/wQEAwICpDATBgNVHSUEDDAKBggr
+BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdEQQiMCCCDmxvY2FsaG9zdDo1
+NDUzgg4xMjcuMC4wLjE6NTQ1MzAKBggqhkjOPQQDAgNIADBFAiEA2zpJEPQyz6/l
+Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc
+6MF9+Yw1Yy0t
+-----END CERTIFICATE-----`
+	keyPem = `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIIrYSSNQFaA2Hwf1duRSxKtLYX5CB04fSeQ6tF1aY/PuoAoGCCqGSM49
+AwEHoUQDQgAEPR3tU2Fta9ktY+6P9G0cWO+0kETA6SFs38GecTyudlHz6xvCdz8q
+EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
+-----END EC PRIVATE KEY-----`
+)
+
 type ftpMock struct {
-	t        *testing.T
-	address  string
-	modtime  string // no-time, std-time, vsftpd
-	listener *net.TCPListener
-	proto    *textproto.Conn
-	commands []string // list of received commands
-	lastFull string   // full last command
-	rest     int
-	fileCont *bytes.Buffer
-	dataConn *mockDataConn
+	t         *testing.T
+	address   string
+	modtime   string // no-time, std-time, vsftpd
+	listener  net.Listener
+	proto     *textproto.Conn
+	commands  []string // list of received commands
+	lastFull  string   // full last command
+	rest      int
+	fileCont  *bytes.Buffer
+	dataConn  *mockDataConn
+	tlsConfig *tls.Config
 	sync.WaitGroup
 }
 
 // newFtpMock returns a mock implementation of a FTP server
 // For simplication, a mock instance only accepts a signle connection and terminates afer
 func newFtpMock(t *testing.T, address string) (*ftpMock, error) {
-	return newFtpMockExt(t, address, "no-time")
+	return newFtpMockExt(t, address, false, "no-time")
 }
 
-func newFtpMockExt(t *testing.T, address, modtime string) (*ftpMock, error) {
-	var err error
+func newFtpMockExt(t *testing.T, address string, ssl bool, modtime string) (*ftpMock, error) {
 	mock := &ftpMock{
 		t:       t,
 		address: address,
 		modtime: modtime,
 	}
 
-	l, err := net.Listen("tcp", address+":0")
-	if err != nil {
-		return nil, err
-	}
+	if ssl {
+		cert, err := tls.X509KeyPair([]byte(certPem), []byte(keyPem))
+		if err != nil {
+			return nil, err
+		}
 
-	tcpListener, ok := l.(*net.TCPListener)
-	if !ok {
-		return nil, errors.New("listener is not a net.TCPListener")
+		mock.tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+		l, err := tls.Listen("tcp", address+":0", mock.tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		mock.listener = l
+	} else {
+		l, err := net.Listen("tcp", address+":0")
+		if err != nil {
+			return nil, err
+		}
+		mock.listener = l
+
 	}
-	mock.listener = tcpListener
 
 	go mock.listen()
 
@@ -260,6 +290,10 @@ func (mock *ftpMock) listen() {
 		case "QUIT":
 			mock.printfLine("221 Goodbye.")
 			return
+		case "PBSZ":
+			mock.printfLine("200 PBSZ ok.")
+		case "PROT":
+			mock.printfLine("200 PROT ok.")
 		default:
 			mock.printfLine("500 Unknown command %s.", cmdParts[0])
 		}
@@ -283,7 +317,7 @@ func (mock *ftpMock) closeDataConn() {
 
 type mockDataConn struct {
 	t        *testing.T
-	listener *net.TCPListener
+	listener net.Listener
 	conn     net.Conn
 	// WaitGroup is done when conn is accepted and stored
 	sync.WaitGroup
@@ -313,16 +347,7 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 	mock.closeDataConn()
 
 	l, err := net.Listen("tcp", mock.address+":0")
-	if err != nil {
-		return 0, err
-	}
-
-	tcpListener, ok := l.(*net.TCPListener)
-	if !ok {
-		return 0, errors.New("listener is not a net.TCPListener")
-	}
-
-	addr := tcpListener.Addr().String()
+	addr := l.Addr().String()
 
 	_, port, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -336,7 +361,7 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 
 	dataConn := &mockDataConn{
 		t:        mock.t,
-		listener: tcpListener,
+		listener: l,
 	}
 	dataConn.Add(1)
 
@@ -345,7 +370,18 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 		conn, err := dataConn.listener.Accept()
 		if err != nil {
 			// mock.t.Fatalf("can not accept data conn: %s", err)
+			dataConn.Done()
 			return
+		}
+
+		if mock.tlsConfig != nil {
+			tlsConn := tls.Server(conn, mock.tlsConfig)
+			if err := tlsConn.Handshake(); err != nil {
+				dataConn.Done()
+				return
+			}
+
+			conn = tlsConn
 		}
 
 		dataConn.conn = conn
@@ -385,7 +421,7 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 }
 
 func openConnExt(t *testing.T, addr, modtime string, options ...DialOption) (*ftpMock, *ServerConn) {
-	mock, err := newFtpMockExt(t, addr, modtime)
+	mock, err := newFtpMockExt(t, addr, false, modtime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -430,4 +466,32 @@ func TestConn4(t *testing.T) {
 func TestConn6(t *testing.T) {
 	mock, c := openConn(t, "[::1]")
 	closeConn(t, mock, c, nil)
+}
+
+func TestConnTLS(t *testing.T) {
+	mock, err := newFtpMockExt(t, "127.0.0.1", true, "std-time")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
+	c, err := Dial(mock.Addr(), DialWithTLS(tlsConf), DialWithTimeout(1*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Login("anonymous", "anonymous")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = c.List(".")
+	if err != nil {
+		t.Error(err)
+	}
+
+	closeConn(t, mock, c, []string{"PBSZ", "PROT", "EPSV", "LIST"})
 }
