@@ -36,7 +36,7 @@ func parseRFC3659ListLine(line string, now time.Time, loc *time.Location) (*Entr
 	}
 
 	e := &Entry{
-		Name: line[iWhitespace+1:],
+		EntryName: line[iWhitespace+1:],
 	}
 
 	for _, field := range strings.Split(line[:iWhitespace-1], ";") {
@@ -91,8 +91,8 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 
 	if fields[1] == "folder" && fields[2] == "0" {
 		e := &Entry{
-			Type: EntryTypeFolder,
-			Name: scanner.Remaining(),
+			Type:      EntryTypeFolder,
+			EntryName: scanner.Remaining(),
 		}
 		if err := e.setTime(fields[3:6], now, loc); err != nil {
 			return nil, err
@@ -104,8 +104,8 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	if fields[1] == "0" {
 		fields = append(fields, scanner.Next())
 		e := &Entry{
-			Type: EntryTypeFile,
-			Name: scanner.Remaining(),
+			Type:      EntryTypeFile,
+			EntryName: scanner.Remaining(),
 		}
 
 		if err := e.setSize(fields[2]); err != nil {
@@ -125,7 +125,7 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	}
 
 	e := &Entry{
-		Name: scanner.Remaining(),
+		EntryName: scanner.Remaining(),
 	}
 	switch fields[0][0] {
 	case '-':
@@ -139,9 +139,9 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 		e.Type = EntryTypeLink
 
 		// Split link name and target
-		if i := strings.Index(e.Name, " -> "); i > 0 {
-			e.Target = e.Name[i+4:]
-			e.Name = e.Name[:i]
+		if i := strings.Index(e.EntryName, " -> "); i > 0 {
+			e.Target = e.EntryName[i+4:]
+			e.EntryName = e.EntryName[:i]
 		}
 	default:
 		return nil, errUnknownListEntryType
@@ -184,7 +184,7 @@ func parseDirListLine(line string, now time.Time, loc *time.Location) (*Entry, e
 		if space == -1 {
 			return nil, errUnsupportedListLine
 		}
-		e.Size, err = strconv.ParseUint(line[:space], 10, 64)
+		e.EntrySize, err = strconv.ParseUint(line[:space], 10, 64)
 		if err != nil {
 			return nil, errUnsupportedListLine
 		}
@@ -192,7 +192,7 @@ func parseDirListLine(line string, now time.Time, loc *time.Location) (*Entry, e
 		line = line[space:]
 	}
 
-	e.Name = strings.TrimLeft(line, " ")
+	e.EntryName = strings.TrimLeft(line, " ")
 	return e, nil
 }
 
@@ -230,7 +230,7 @@ func parseListLine(line string, now time.Time, loc *time.Location) (*Entry, erro
 }
 
 func (e *Entry) setSize(str string) (err error) {
-	e.Size, err = strconv.ParseUint(str, 0, 64)
+	e.EntrySize, err = strconv.ParseUint(str, 0, 64)
 	return
 }
 

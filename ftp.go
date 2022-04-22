@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/textproto"
 	"strconv"
@@ -74,11 +75,40 @@ type dialOptions struct {
 
 // Entry describes a file and is returned by List().
 type Entry struct {
-	Name   string
-	Target string // target of symbolic link
-	Type   EntryType
-	Size   uint64
-	Time   time.Time
+	EntryName string
+	Target    string // target of symbolic link
+	Type      EntryType
+	EntrySize uint64
+	Time      time.Time
+}
+
+func (e *Entry) Name() string {
+	return e.EntryName
+}
+
+func (e *Entry) Size() int64 {
+	return int64(e.EntrySize)
+}
+
+func (e *Entry) Mode() fs.FileMode {
+	// Need to parse file mode into the different
+	// parsing functions
+	if e.IsDir() {
+		return 0777
+	}
+	return 0666
+}
+
+func (e *Entry) ModTime() time.Time {
+	return e.Time
+}
+
+func (e *Entry) IsDir() bool {
+	return e.Type == EntryTypeFolder
+}
+
+func (e *Entry) Sys() interface{} {
+	return &e
 }
 
 // Response represents a data-connection
@@ -890,14 +920,14 @@ func (c *ServerConn) RemoveDirRecur(path string) error {
 	}
 
 	for _, entry := range entries {
-		if entry.Name != ".." && entry.Name != "." {
+		if entry.EntryName != ".." && entry.EntryName != "." {
 			if entry.Type == EntryTypeFolder {
-				err = c.RemoveDirRecur(currentDir + "/" + entry.Name)
+				err = c.RemoveDirRecur(currentDir + "/" + entry.EntryName)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = c.Delete(entry.Name)
+				err = c.Delete(entry.EntryName)
 				if err != nil {
 					return err
 				}

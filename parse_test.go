@@ -105,9 +105,9 @@ func TestParseValidListLine(t *testing.T) {
 			entry, err := parseListLine(lt.line, now, time.UTC)
 
 			if assert.NoError(err) {
-				assert.Equal(lt.name, entry.Name)
+				assert.Equal(lt.name, entry.EntryName)
 				assert.Equal(lt.entryType, entry.Type)
-				assert.Equal(lt.size, entry.Size)
+				assert.Equal(lt.size, entry.EntrySize)
 				assert.Equal(lt.time, entry.Time)
 			}
 		})
@@ -121,7 +121,7 @@ func TestParseSymlinks(t *testing.T) {
 			entry, err := parseListLine(lt.line, now, time.UTC)
 
 			if assert.NoError(err) {
-				assert.Equal(lt.name, entry.Name)
+				assert.Equal(lt.name, entry.EntryName)
 				assert.Equal(lt.target, entry.Target)
 				assert.Equal(EntryTypeLink, entry.Type)
 			}

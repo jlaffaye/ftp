@@ -43,12 +43,12 @@ func (w *Walker) Next() bool {
 		}
 
 		for _, entry := range entries {
-			if entry.Name == "." || entry.Name == ".." {
+			if entry.EntryName == "." || entry.EntryName == ".." {
 				continue
 			}
 
 			item := &item{
-				path:  path.Join(w.cur.path, entry.Name),
+				path:  path.Join(w.cur.path, entry.EntryName),
 				entry: entry,
 			}
 
