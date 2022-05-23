@@ -33,8 +33,8 @@ type TransferType string
 
 // The different transfer types
 const (
-	TransferTypeImage = "I"
-	TransferTypeASCII = "A"
+	TransferTypeBinary = "I"
+	TransferTypeASCII  = "A"
 )
 
 // Time format used by the MDTM and MFMT commands
@@ -349,7 +349,7 @@ func (c *ServerConn) Login(user, password string) error {
 	c.mdtmCanWrite = c.mdtmSupported && c.options.writingMDTM
 
 	// Switch to binary mode
-	if err = c.Type(TransferTypeImage); err != nil {
+	if err = c.Type(TransferTypeBinary); err != nil {
 		return err
 	}
 
