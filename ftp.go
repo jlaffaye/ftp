@@ -28,6 +28,15 @@ const (
 	EntryTypeLink
 )
 
+// TransferType denotes the formats for transfering Entries.
+type TransferType string
+
+// The different transfer types
+const (
+	TransferTypeImage = "I"
+	TransferTypeASCII = "A"
+)
+
 // Time format used by the MDTM and MFMT commands
 const timeFormat = "20060102150405"
 
@@ -340,7 +349,7 @@ func (c *ServerConn) Login(user, password string) error {
 	c.mdtmCanWrite = c.mdtmSupported && c.options.writingMDTM
 
 	// Switch to binary mode
-	if _, _, err = c.cmd(StatusCommandOK, "TYPE I"); err != nil {
+	if err = c.Type(TransferTypeImage); err != nil {
 		return err
 	}
 
@@ -578,6 +587,12 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	}
 
 	return conn, nil
+}
+
+// Type switches the transfer mode for the connection.
+func (c *ServerConn) Type(transferType TransferType) (err error) {
+	_, _, err = c.cmd(StatusCommandOK, "TYPE "+string(transferType))
+	return err
 }
 
 // NameList issues an NLST FTP command.
