@@ -40,6 +40,8 @@ const (
 // Time format used by the MDTM and MFMT commands
 const timeFormat = "20060102150405"
 
+var ErrNotSupported = errors.New("Not supported by remote FTP server")
+
 // ServerConn represents the connection to a remote FTP server.
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
@@ -668,6 +670,35 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	}
 
 	return entries, errs.ErrorOrNil()
+}
+
+// Stat issues an MLST command which returns info for a single entry
+func (c *ServerConn) Stat(path string) (entry *Entry, err error) {
+	if !c.mlstSupported {
+		return nil, ErrNotSupported
+	}
+
+	cmd := "MLST"
+	parser := parseRFC3659ListLine
+
+	space := " "
+	if path == "" {
+		space = ""
+	}
+
+	_, msg, errCmd := c.cmd(StatusRequestedFileActionOK, "%s%s%s", cmd, space, path)
+	if errCmd != nil {
+		return nil, errCmd
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(msg))
+	for scanner.Scan() {
+		parseEntry, parseErr := parser(strings.TrimLeft(scanner.Text(), " "), time.Now(), c.options.location)
+		if parseErr == nil {
+			return parseEntry, parseErr
+		}
+	}
+	return nil, scanner.Err()
 }
 
 // IsTimePreciseInList returns true if client and server support the MLSD
