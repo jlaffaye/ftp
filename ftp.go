@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/netip"
 	"net/textproto"
 	"strconv"
 	"strings"
@@ -497,6 +498,19 @@ func (c *ServerConn) pasv() (host string, port int, err error) {
 
 	// Make the IP address to connect to
 	host = strings.Join(pasvData[0:4], ".")
+
+	if c.host != host {
+		if cmdIP, err := netip.ParseAddr(c.host); err == nil {
+			if dataIP, err := netip.ParseAddr(host); err == nil {
+				// Logic stolen from lftp (https://github.com/lavv17/lftp/blob/d67fc14d085849a6b0418bb3e912fea2e94c18d1/src/ftpclass.cc#L769)
+				if dataIP.IsMulticast() ||
+					cmdIP.IsPrivate() != dataIP.IsPrivate() ||
+					cmdIP.IsLoopback() != dataIP.IsLoopback() {
+					return c.host, port, nil
+				}
+			}
+		}
+	}
 	return host, port, nil
 }
 
