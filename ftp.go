@@ -670,6 +670,37 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	return entries, errs.ErrorOrNil()
 }
 
+// Get issues a MLST FTP command which retrieves one single Entry using the
+// control connection. The returnedEntry will describe the current directory
+// when no path is given.
+func (c *ServerConn) Get(path string) (entry *Entry, err error) {
+	if !c.mlstSupported {
+		return nil, &textproto.Error{StatusNotImplemented, StatusText(StatusNotImplemented)}
+	}
+	space := " "
+	if path == "" {
+		space = ""
+	}
+	_, msg, err := c.cmd(StatusRequestedFileActionOK, "%s%s%s", "MLST", space, path)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(msg, "\n")
+	lc := len(lines)
+
+	// lines must be a multi-line message with a length of 3 or more, and we
+	// don't care about the first and last line
+	switch {
+	case lc < 3:
+		return nil, errors.New("invalid response")
+	case lc == 3:
+		msg = lines[1]
+	default:
+		msg = strings.Join(lines[1:lc-1], "\n")
+	}
+	return parseRFC3659ListLine(msg, time.Now(), c.options.location)
+}
+
 // IsTimePreciseInList returns true if client and server support the MLSD
 // command so List can return time with 1-second precision for all files.
 func (c *ServerConn) IsTimePreciseInList() bool {

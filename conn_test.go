@@ -88,7 +88,7 @@ func (mock *ftpMock) listen() {
 		// At least one command must have a multiline response
 		switch cmdParts[0] {
 		case "FEAT":
-			features := "211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n"
+			features := "211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n MLST\r\n"
 			switch mock.modtime {
 			case "std-time":
 				features += " MDTM\r\n MFMT\r\n"
@@ -176,6 +176,19 @@ func (mock *ftpMock) listen() {
 			mock.dataConn.write([]byte("-rw-r--r--   1 ftp      wheel           0 Jan 29 10:29 lo\r\ntotal 1"))
 			mock.printfLine("226 Transfer complete")
 			mock.closeDataConn()
+		case "MLSD":
+			if mock.dataConn == nil {
+				mock.printfLine("425 Unable to build data connection: Connection refused")
+				break
+			}
+
+			mock.dataConn.Wait()
+			mock.printfLine("150 Opening data connection for file list")
+			mock.dataConn.write([]byte("Type=file;Size=0;Modify=20201213202400; lo\r\n"))
+			mock.printfLine("226 Transfer complete")
+			mock.closeDataConn()
+		case "MLST":
+			mock.printfLine("250-File data\r\nType=file;Size=42;Modify=20201213202400; magic-file\r\n250 End")
 		case "NLST":
 			if mock.dataConn == nil {
 				mock.printfLine("425 Unable to build data connection: Connection refused")
