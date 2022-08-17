@@ -153,7 +153,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Fatal("expected error, got nil")
 	}
 
-	entry, err := c.Get("magic-file")
+	entry, err := c.GetEntry("magic-file")
 	if err != nil {
 		t.Error(err)
 	}
@@ -168,6 +168,23 @@ func testConn(t *testing.T, disableEPSV bool) {
 	}
 	if entry.Name != "magic-file" {
 		t.Errorf("entry name %q, expected %q", entry.Name, "magic-file")
+	}
+
+	entry, err = c.GetEntry("multiline-dir")
+	if err != nil {
+		t.Error(err)
+	}
+	if entry == nil {
+		t.Fatal("expected entry, got nil")
+	}
+	if entry.Size != 0 {
+		t.Errorf("entry size %q, expected %q", entry.Size, 0)
+	}
+	if entry.Type != EntryTypeFolder {
+		t.Errorf("entry type %q, expected %q", entry.Type, EntryTypeFolder)
+	}
+	if entry.Name != "multiline-dir" {
+		t.Errorf("entry name %q, expected %q", entry.Name, "multiline-dir")
 	}
 
 	err = c.Delete("tset")

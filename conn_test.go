@@ -188,7 +188,11 @@ func (mock *ftpMock) listen() {
 			mock.printfLine("226 Transfer complete")
 			mock.closeDataConn()
 		case "MLST":
-			mock.printfLine("250-File data\r\nType=file;Size=42;Modify=20201213202400; magic-file\r\n250 End")
+			if cmdParts[1] == "multiline-dir" {
+				mock.printfLine("250-File data\r\n Type=dir;Size=0; multiline-dir\r\n Modify=20201213202400; multiline-dir\r\n250 End")
+			} else {
+				mock.printfLine("250-File data\r\n Type=file;Size=42;Modify=20201213202400; magic-file\r\n250 End")
+			}
 		case "NLST":
 			if mock.dataConn == nil {
 				mock.printfLine("425 Unable to build data connection: Connection refused")
