@@ -110,16 +110,20 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 	dialFunc := do.dialFunc
 
 	if dialFunc == nil {
+		ctx := do.context
+
+		if ctx == nil {
+			ctx = context.Background()
+		}
 		if do.tlsConfig != nil && !do.explicitTLS {
 			dialFunc = func(network, address string) (net.Conn, error) {
-				return tls.DialWithDialer(&do.dialer, network, addr, do.tlsConfig)
+				tlsDialer := &tls.Dialer{
+					NetDialer: &do.dialer,
+					Config:    do.tlsConfig,
+				}
+				return tlsDialer.DialContext(ctx, network, addr)
 			}
 		} else {
-			ctx := do.context
-
-			if ctx == nil {
-				ctx = context.Background()
-			}
 
 			dialFunc = func(network, address string) (net.Conn, error) {
 				return do.dialer.DialContext(ctx, network, addr)
