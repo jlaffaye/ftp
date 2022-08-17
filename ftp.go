@@ -685,6 +685,19 @@ func (c *ServerConn) GetEntry(path string) (entry *Entry, err error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// The expected reply will look something like:
+	//
+	//    250-File details
+	//     Type=file;Size=1024;Modify=20220813133357; path
+	//    250 End
+	//
+	// Multiple lines are allowed though, so it can also be in the form:
+	//
+	//    250-File details
+	//     Type=file;Size=1024; path
+	//     Modify=20220813133357; path
+	//    250 End
 	lines := strings.Split(msg, "\n")
 	lc := len(lines)
 
