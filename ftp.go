@@ -70,7 +70,6 @@ type dialOptions struct {
 	dialer      net.Dialer
 	tlsConfig   *tls.Config
 	explicitTLS bool
-	conn        net.Conn
 	disableEPSV bool
 	disableUTF8 bool
 	disableMLSD bool
@@ -108,14 +107,13 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		do.location = time.UTC
 	}
 
-	tconn := do.conn
-	if tconn == nil {
-		var err error
+	dialFunc := do.dialFunc
 
-		if do.dialFunc != nil {
-			tconn, err = do.dialFunc("tcp", addr)
-		} else if do.tlsConfig != nil && !do.explicitTLS {
-			tconn, err = tls.DialWithDialer(&do.dialer, "tcp", addr, do.tlsConfig)
+	if dialFunc == nil {
+		if do.tlsConfig != nil && !do.explicitTLS {
+			dialFunc = func(network, address string) (net.Conn, error) {
+				return tls.DialWithDialer(&do.dialer, network, addr, do.tlsConfig)
+			}
 		} else {
 			ctx := do.context
 
@@ -123,12 +121,15 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 				ctx = context.Background()
 			}
 
-			tconn, err = do.dialer.DialContext(ctx, "tcp", addr)
+			dialFunc = func(network, address string) (net.Conn, error) {
+				return do.dialer.DialContext(ctx, network, addr)
+			}
 		}
+	}
 
-		if err != nil {
-			return nil, err
-		}
+	tconn, err := dialFunc("tcp", addr)
+	if err != nil {
+		return nil, err
 	}
 
 	// Use the resolved IP address in case addr contains a domain name
@@ -143,7 +144,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		host:     remoteAddr.IP.String(),
 	}
 
-	_, _, err := c.conn.ReadResponse(StatusReady)
+	_, _, err = c.conn.ReadResponse(StatusReady)
 	if err != nil {
 		_ = c.Quit()
 		return nil, err
@@ -185,10 +186,12 @@ func DialWithDialer(dialer net.Dialer) DialOption {
 }
 
 // DialWithNetConn returns a DialOption that configures the ServerConn with the underlying net.Conn
+//
+// Deprecated: Use [DialWithDialFunc] instead
 func DialWithNetConn(conn net.Conn) DialOption {
-	return DialOption{func(do *dialOptions) {
-		do.conn = conn
-	}}
+	return DialWithDialFunc(func(network, address string) (net.Conn, error) {
+		return conn, nil
+	})
 }
 
 // DialWithDisabledEPSV returns a DialOption that configures the ServerConn with EPSV disabled
