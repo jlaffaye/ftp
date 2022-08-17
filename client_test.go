@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"net/textproto"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -28,174 +26,111 @@ func TestConnEPSV(t *testing.T) {
 }
 
 func testConn(t *testing.T, disableEPSV bool) {
+	assert := assert.New(t)
 	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second), DialWithDisabledEPSV(disableEPSV))
 
 	err := c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(err)
 
 	err = c.NoOp()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	err = c.ChangeDir("incoming")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	dir, err := c.CurrentDir()
-	if err != nil {
-		t.Error(err)
-	} else {
-		if dir != "/incoming" {
-			t.Error("Wrong dir: " + dir)
-		}
+	if assert.NoError(err) {
+		assert.Equal("/incoming", dir)
 	}
 
 	data := bytes.NewBufferString(testData)
 	err = c.Stor("test", data)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	_, err = c.List(".")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	err = c.Rename("test", "tset")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	// Read without deadline
 	r, err := c.Retr("tset")
-	if err != nil {
-		t.Error(err)
-	} else {
-		buf, errRead := ioutil.ReadAll(r)
-		if err != nil {
-			t.Error(errRead)
+	if assert.NoError(err) {
+		buf, err := ioutil.ReadAll(r)
+		if assert.NoError(err) {
+			assert.Equal(testData, string(buf))
 		}
-		if string(buf) != testData {
-			t.Errorf("'%s'", buf)
-		}
+
 		r.Close()
 		r.Close() // test we can close two times
 	}
 
 	// Read with deadline
 	r, err = c.Retr("tset")
-	if err != nil {
-		t.Error(err)
-	} else {
+	if assert.NoError(err) {
 		if err := r.SetDeadline(time.Now()); err != nil {
 			t.Fatal(err)
 		}
 		_, err = ioutil.ReadAll(r)
-		if err == nil {
-			t.Error("deadline should have caused error")
-		} else if !strings.HasSuffix(err.Error(), "i/o timeout") {
-			t.Error(err)
-		}
+		assert.ErrorContains(err, "i/o timeout")
 		r.Close()
 	}
 
 	// Read with offset
 	r, err = c.RetrFrom("tset", 5)
-	if err != nil {
-		t.Error(err)
-	} else {
-		buf, errRead := ioutil.ReadAll(r)
-		if errRead != nil {
-			t.Error(errRead)
+	if assert.NoError(err) {
+		buf, err := ioutil.ReadAll(r)
+		if assert.NoError(err) {
+			expected := testData[5:]
+			assert.Equal(expected, string(buf))
 		}
-		expected := testData[5:]
-		if string(buf) != expected {
-			t.Errorf("read %q, expected %q", buf, expected)
-		}
+
 		r.Close()
 	}
 
 	data2 := bytes.NewBufferString(testData)
 	err = c.Append("tset", data2)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	// Read without deadline, after append
 	r, err = c.Retr("tset")
-	if err != nil {
-		t.Error(err)
-	} else {
-		buf, errRead := ioutil.ReadAll(r)
-		if err != nil {
-			t.Error(errRead)
+	if assert.NoError(err) {
+		buf, err := ioutil.ReadAll(r)
+		if assert.NoError(err) {
+			assert.Equal(testData+testData, string(buf))
 		}
-		if string(buf) != testData+testData {
-			t.Errorf("'%s'", buf)
-		}
+
 		r.Close()
 	}
 
 	fileSize, err := c.FileSize("magic-file")
-	if err != nil {
-		t.Error(err)
-	}
-	if fileSize != 42 {
-		t.Errorf("file size %q, expected %q", fileSize, 42)
-	}
+	assert.NoError(err)
+	assert.Equal(int64(42), fileSize)
 
 	_, err = c.FileSize("not-found")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	assert.Error(err)
 
 	err = c.Delete("tset")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	err = c.MakeDir(testDir)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	err = c.ChangeDir(testDir)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	err = c.ChangeDirToParent()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	entries, err := c.NameList("/")
-	if err != nil {
-		t.Error(err)
-	}
-	if len(entries) != 1 || entries[0] != "/incoming" {
-		t.Errorf("Unexpected entries: %v", entries)
-	}
+	assert.NoError(err)
+	assert.Equal([]string{"/incoming"}, entries)
 
 	err = c.RemoveDir(testDir)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
 	err = c.Logout()
-	if err != nil {
-		if protoErr := err.(*textproto.Error); protoErr != nil {
-			if protoErr.Code != StatusNotImplemented {
-				t.Error(err)
-			}
-		} else {
-			t.Error(err)
-		}
-	}
+	assert.NoError(err)
 
 	if err = c.Quit(); err != nil {
 		t.Fatal(err)
@@ -205,9 +140,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	mock.Wait()
 
 	err = c.NoOp()
-	if err == nil {
-		t.Error("Expected error")
-	}
+	assert.Error(err, "should error on closed conn")
 }
 
 // TestConnect tests the legacy Connect function

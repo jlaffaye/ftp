@@ -6,12 +6,14 @@ import (
 	"io"
 	"net"
 	"net/textproto"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type ftpMock struct {
@@ -386,20 +388,14 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 
 func openConnExt(t *testing.T, addr, modtime string, options ...DialOption) (*ftpMock, *ServerConn) {
 	mock, err := newFtpMockExt(t, addr, modtime)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer mock.Close()
 
 	c, err := Dial(mock.Addr(), options...)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return mock, c
 }
@@ -417,9 +413,7 @@ func closeConn(t *testing.T, mock *ftpMock, c *ServerConn, commands []string) {
 	// Wait for the connection to close
 	mock.Wait()
 
-	if !reflect.DeepEqual(mock.commands, expected) {
-		t.Fatal("unexpected sequence of commands:", mock.commands, "expected:", expected)
-	}
+	assert.Equal(t, expected, mock.commands, "unexpected sequence of commands")
 }
 
 func TestConn4(t *testing.T) {
