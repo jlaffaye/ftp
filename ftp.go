@@ -33,8 +33,8 @@ type TransferType string
 
 // The different transfer types
 const (
-	TransferTypeBinary = "I"
-	TransferTypeASCII  = "A"
+	TransferTypeBinary = TransferType("I")
+	TransferTypeASCII  = TransferType("A")
 )
 
 // Time format used by the MDTM and MFMT commands
