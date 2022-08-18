@@ -28,7 +28,7 @@ const (
 	EntryTypeLink
 )
 
-// TransferType denotes the formats for transfering Entries.
+// TransferType denotes the formats for transferring Entries.
 type TransferType string
 
 // The different transfer types
