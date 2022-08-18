@@ -308,14 +308,15 @@ func (o *dialOptions) wrapStream(rd io.ReadCloser) io.ReadCloser {
 }
 
 // Connect is an alias to Dial, for backward compatibility
+//
+// Deprecated: Use [Dial] instead
 func Connect(addr string) (*ServerConn, error) {
 	return Dial(addr)
 }
 
 // DialTimeout initializes the connection to the specified ftp server address.
 //
-// It is generally followed by a call to Login() as most FTP commands require
-// an authenticated user.
+// Deprecated: Use [Dial] with [DialWithTimeout] option instead
 func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	return Dial(addr, DialWithTimeout(timeout))
 }
