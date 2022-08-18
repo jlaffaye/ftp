@@ -3,7 +3,7 @@ package ftp
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"syscall"
 	"testing"
@@ -56,7 +56,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	// Read without deadline
 	r, err := c.Retr("tset")
 	if assert.NoError(err) {
-		buf, err := ioutil.ReadAll(r)
+		buf, err := io.ReadAll(r)
 		if assert.NoError(err) {
 			assert.Equal(testData, string(buf))
 		}
@@ -71,7 +71,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		if err := r.SetDeadline(time.Now()); err != nil {
 			t.Fatal(err)
 		}
-		_, err = ioutil.ReadAll(r)
+		_, err = io.ReadAll(r)
 		assert.ErrorContains(err, "i/o timeout")
 		r.Close()
 	}
@@ -79,7 +79,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	// Read with offset
 	r, err = c.RetrFrom("tset", 5)
 	if assert.NoError(err) {
-		buf, err := ioutil.ReadAll(r)
+		buf, err := io.ReadAll(r)
 		if assert.NoError(err) {
 			expected := testData[5:]
 			assert.Equal(expected, string(buf))
@@ -95,7 +95,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	// Read without deadline, after append
 	r, err = c.Retr("tset")
 	if assert.NoError(err) {
-		buf, err := ioutil.ReadAll(r)
+		buf, err := io.ReadAll(r)
 		if assert.NoError(err) {
 			assert.Equal(testData+testData, string(buf))
 		}
