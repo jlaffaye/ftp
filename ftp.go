@@ -675,7 +675,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 // when no path is given.
 func (c *ServerConn) GetEntry(path string) (entry *Entry, err error) {
 	if !c.mlstSupported {
-		return nil, &textproto.Error{StatusNotImplemented, StatusText(StatusNotImplemented)}
+		return nil, &textproto.Error{Code: StatusNotImplemented, Msg: StatusText(StatusNotImplemented)}
 	}
 	space := " "
 	if path == "" {
