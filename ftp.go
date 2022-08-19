@@ -715,7 +715,7 @@ func (c *ServerConn) GetEntry(path string) (entry *Entry, err error) {
 		if len(l) > 0 && l[0] == ' ' {
 			l = l[1:]
 		}
-		if e, err = parseNextRFC3659ListLine(l, time.Now(), c.options.location, e); err != nil {
+		if e, err = parseNextRFC3659ListLine(l, c.options.location, e); err != nil {
 			return nil, err
 		}
 	}
