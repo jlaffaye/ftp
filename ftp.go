@@ -678,6 +678,58 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	return entries, errs.ErrorOrNil()
 }
 
+// GetEntry issues a MLST FTP command which retrieves one single Entry using the
+// control connection. The returnedEntry will describe the current directory
+// when no path is given.
+func (c *ServerConn) GetEntry(path string) (entry *Entry, err error) {
+	if !c.mlstSupported {
+		return nil, &textproto.Error{Code: StatusNotImplemented, Msg: StatusText(StatusNotImplemented)}
+	}
+	space := " "
+	if path == "" {
+		space = ""
+	}
+	_, msg, err := c.cmd(StatusRequestedFileActionOK, "%s%s%s", "MLST", space, path)
+	if err != nil {
+		return nil, err
+	}
+
+	// The expected reply will look something like:
+	//
+	//    250-File details
+	//     Type=file;Size=1024;Modify=20220813133357; path
+	//    250 End
+	//
+	// Multiple lines are allowed though, so it can also be in the form:
+	//
+	//    250-File details
+	//     Type=file;Size=1024; path
+	//     Modify=20220813133357; path
+	//    250 End
+	lines := strings.Split(msg, "\n")
+	lc := len(lines)
+
+	// lines must be a multi-line message with a length of 3 or more, and we
+	// don't care about the first and last line
+	if lc < 3 {
+		return nil, errors.New("invalid response")
+	}
+
+	e := &Entry{}
+	for _, l := range lines[1 : lc-1] {
+		// According to RFC 3659, the entry lines must start with a space when passed over the
+		// control connection. Some servers don't seem to add that space though. Both forms are
+		// accepted here.
+		if len(l) > 0 && l[0] == ' ' {
+			l = l[1:]
+		}
+		if e, err = parseNextRFC3659ListLine(l, c.options.location, e); err != nil {
+			return nil, err
+		}
+	}
+	return e, nil
+}
+
 // IsTimePreciseInList returns true if client and server support the MLSD
 // command so List can return time with 1-second precision for all files.
 func (c *ServerConn) IsTimePreciseInList() bool {

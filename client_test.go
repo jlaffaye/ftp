@@ -110,6 +110,40 @@ func testConn(t *testing.T, disableEPSV bool) {
 	_, err = c.FileSize("not-found")
 	assert.Error(err)
 
+	entry, err := c.GetEntry("magic-file")
+	if err != nil {
+		t.Error(err)
+	}
+	if entry == nil {
+		t.Fatal("expected entry, got nil")
+	}
+	if entry.Size != 42 {
+		t.Errorf("entry size %q, expected %q", entry.Size, 42)
+	}
+	if entry.Type != EntryTypeFile {
+		t.Errorf("entry type %q, expected %q", entry.Type, EntryTypeFile)
+	}
+	if entry.Name != "magic-file" {
+		t.Errorf("entry name %q, expected %q", entry.Name, "magic-file")
+	}
+
+	entry, err = c.GetEntry("multiline-dir")
+	if err != nil {
+		t.Error(err)
+	}
+	if entry == nil {
+		t.Fatal("expected entry, got nil")
+	}
+	if entry.Size != 0 {
+		t.Errorf("entry size %q, expected %q", entry.Size, 0)
+	}
+	if entry.Type != EntryTypeFolder {
+		t.Errorf("entry type %q, expected %q", entry.Type, EntryTypeFolder)
+	}
+	if entry.Name != "multiline-dir" {
+		t.Errorf("entry name %q, expected %q", entry.Name, "multiline-dir")
+	}
+
 	err = c.Delete("tset")
 	assert.NoError(err)
 
@@ -245,7 +279,7 @@ func TestMissingFolderDeleteDirRecur(t *testing.T) {
 }
 
 func TestListCurrentDir(t *testing.T) {
-	mock, c := openConn(t, "127.0.0.1")
+	mock, c := openConnExt(t, "127.0.0.1", "no-time", DialWithDisabledMLSD(true))
 
 	_, err := c.List("")
 	assert.NoError(t, err)
