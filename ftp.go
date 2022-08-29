@@ -18,6 +18,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+const (
+	// 30 seconds was chosen as it's the
+	// same duration as http.DefaultTransport's timeout.
+	DefaultDialTimeout = 30 * time.Second
+)
+
 // EntryType describes the different types of an Entry.
 type EntryType int
 
@@ -115,6 +121,12 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		if ctx == nil {
 			ctx = context.Background()
 		}
+		if _, ok := ctx.Deadline(); !ok {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, DefaultDialTimeout)
+			defer cancel()
+		}
+
 		if do.tlsConfig != nil && !do.explicitTLS {
 			dialFunc = func(network, address string) (net.Conn, error) {
 				tlsDialer := &tls.Dialer{
@@ -1001,7 +1013,7 @@ func (c *ServerConn) RemoveDir(path string) error {
 	return err
 }
 
-//Walk prepares the internal walk function so that the caller can begin traversing the directory
+// Walk prepares the internal walk function so that the caller can begin traversing the directory
 func (c *ServerConn) Walk(root string) *Walker {
 	w := new(Walker)
 	w.serverConn = c
