@@ -295,6 +295,20 @@ func TestListCurrentDir(t *testing.T) {
 	mock.Wait()
 }
 
+func TestListCurrentDirWithForceListHidden(t *testing.T) {
+	mock, c := openConnExt(t, "127.0.0.1", "no-time", DialWithDisabledMLSD(true), DialWithForceListHidden(true))
+
+	assert.True(t, c.options.forceListHidden)
+	_, err := c.List("")
+	assert.NoError(t, err)
+	assert.Equal(t, "LIST -a", mock.lastFull, "LIST -a must not have a trailing whitespace")
+
+	err = c.Quit()
+	assert.NoError(t, err)
+
+	mock.Wait()
+}
+
 func TestTimeUnsupported(t *testing.T) {
 	mock, c := openConnExt(t, "127.0.0.1", "no-time")
 
