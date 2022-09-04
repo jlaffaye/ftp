@@ -72,18 +72,19 @@ type DialOption struct {
 
 // dialOptions contains all the options set by DialOption.setup
 type dialOptions struct {
-	context     context.Context
-	dialer      net.Dialer
-	tlsConfig   *tls.Config
-	explicitTLS bool
-	disableEPSV bool
-	disableUTF8 bool
-	disableMLSD bool
-	writingMDTM bool
-	location    *time.Location
-	debugOutput io.Writer
-	dialFunc    func(network, address string) (net.Conn, error)
-	shutTimeout time.Duration // time to wait for data connection closing status
+	context         context.Context
+	dialer          net.Dialer
+	tlsConfig       *tls.Config
+	explicitTLS     bool
+	disableEPSV     bool
+	disableUTF8     bool
+	disableMLSD     bool
+	writingMDTM     bool
+	forceListHidden bool
+	location        *time.Location
+	debugOutput     io.Writer
+	dialFunc        func(network, address string) (net.Conn, error)
+	shutTimeout     time.Duration // time to wait for data connection closing status
 }
 
 // Entry describes a file and is returned by List().
@@ -244,6 +245,16 @@ func DialWithDisabledMLSD(disabled bool) DialOption {
 func DialWithWritingMDTM(enabled bool) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.writingMDTM = enabled
+	}}
+}
+
+// DialWithForceListHidden returns a DialOption making ServerConn use LIST -a to include hidden files and folders in directory listings
+//
+// This is useful for servers that do not do this by default, but it forces the use of the LIST command
+// even if the server supports MLST.
+func DialWithForceListHidden(enabled bool) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.forceListHidden = enabled
 	}}
 }
 
@@ -650,11 +661,14 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	var cmd string
 	var parser parseFunc
 
-	if c.mlstSupported {
+	if c.mlstSupported && !c.options.forceListHidden {
 		cmd = "MLSD"
 		parser = parseRFC3659ListLine
 	} else {
 		cmd = "LIST"
+		if c.options.forceListHidden {
+			cmd += " -a"
+		}
 		parser = parseListLine
 	}
 

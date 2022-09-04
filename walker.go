@@ -4,7 +4,7 @@ import (
 	"path"
 )
 
-//Walker traverses the directory tree of a remote FTP server
+// Walker traverses the directory tree of a remote FTP server
 type Walker struct {
 	serverConn *ServerConn
 	root       string
