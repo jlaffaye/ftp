@@ -23,7 +23,7 @@ jobs:
     - name: Convert coverage to lcov
       uses: jandelgado/gcov2lcov-action@2477d9ec11814a9326e7fdde8d315783d163edb7
     - name: Coveralls
-      uses: coverallsapp/github-action@8cbef1dea373ebce56de0a14c68d6267baa10b44
+      uses: coverallsapp/github-action@9ba913c152ae4be1327bfb9085dc806cedb44057
       with:
         github-token: ${{ secrets.github_token }}
         path-to-lcov: coverage.lcov
