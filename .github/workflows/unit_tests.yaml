@@ -7,7 +7,7 @@ jobs:
     steps:
     - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089
     - name: Setup go
-      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
       with:
         go-version: 1.19
     - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
