@@ -5,12 +5,12 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089
     - name: Setup go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492
       with:
-        go-version: 1.17
-    - uses: actions/cache@v2
+        go-version: 1.19
+    - uses: actions/cache@937d24475381cd9c75ae6db12cb4e79714b926ed
       with:
         path: |
           ~/go/pkg/mod
@@ -21,9 +21,9 @@ jobs:
     - name: Run tests
       run: go test -v -covermode=count -coverprofile=coverage.out
     - name: Convert coverage to lcov
-      uses: jandelgado/gcov2lcov-action@v1.0.8
+      uses: jandelgado/gcov2lcov-action@2477d9ec11814a9326e7fdde8d315783d163edb7
     - name: Coveralls
-      uses: coverallsapp/github-action@v1.1.2
+      uses: coverallsapp/github-action@8cbef1dea373ebce56de0a14c68d6267baa10b44
       with:
         github-token: ${{ secrets.github_token }}
         path-to-lcov: coverage.lcov
