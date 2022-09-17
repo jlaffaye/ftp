@@ -63,6 +63,7 @@ type ServerConn struct {
 	mdtmSupported bool
 	mdtmCanWrite  bool
 	usePRET       bool
+	welcome       string
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -161,11 +162,13 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		host:     remoteAddr.IP.String(),
 	}
 
-	_, _, err = c.conn.ReadResponse(StatusReady)
+	var msg string
+	_, msg, err = c.conn.ReadResponse(StatusReady)
 	if err != nil {
 		_ = c.Quit()
 		return nil, err
 	}
+	c.welcome = msg
 
 	if do.explicitTLS {
 		if err := c.authTLS(); err != nil {
@@ -1070,6 +1073,11 @@ func (c *ServerConn) Quit() error {
 	}
 
 	return errs.ErrorOrNil()
+}
+
+// Welcome returns the welcome message
+func (c *ServerConn) Welcome() string {
+	return c.welcome
 }
 
 // Read implements the io.Reader interface on a FTP data connection.
