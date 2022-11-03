@@ -163,6 +163,17 @@ func testConn(t *testing.T, disableEPSV bool) {
 	err = c.RemoveDir(testDir)
 	assert.NoError(err)
 
+	code, response, err := c.SendCommand("NOOP")
+	if err != nil {
+		t.Error(err)
+	}
+	if code != StatusCommandOK {
+		t.Errorf("Unexpected status code, got %d, want %d", code, StatusCommandOK)
+	}
+	if response != "NOOP ok." {
+		t.Errorf("Unexpected custom command response %q", response)
+	}
+
 	err = c.Logout()
 	assert.NoError(err)
 

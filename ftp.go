@@ -1080,6 +1080,13 @@ func (c *ServerConn) NoOp() error {
 	return err
 }
 
+// SendCommand issues the specified command on the control connection.
+// Returns the response code, the response message and error if any.
+// This is useful for server specific implementations, for example SITE command.
+func (c *ServerConn) SendCommand(command string, args ...interface{}) (int, string, error) {
+	return c.cmd(-1, command, args...)
+}
+
 // Logout issues a REIN FTP command to logout the current user.
 func (c *ServerConn) Logout() error {
 	_, _, err := c.cmd(StatusReady, "REIN")
