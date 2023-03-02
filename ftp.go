@@ -957,6 +957,71 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	return errs.ErrorOrNil()
 }
 
+// StorStart issues a STOR FTP command to prepare storing a file to the remote FTP server.
+// Stor creates the specified file with the content of the io.Reader, writing
+// on the server will start at the given file offset.
+//
+// Hint: io.Pipe() can be used if an io.Writer is required.
+func (c *ServerConn) StorStart(path string, offset uint64) (net.Conn, error) {
+	conn, err := c.cmdDataConnFrom(offset, "STOR %s", path)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+// StorData issues a STOR FTP command to store file data to the remote FTP server.
+// Stor creates the specified file with the content of the io.Reader, writing
+// on the server will start at the given file offset.
+//
+// Hint: io.Pipe() can be used if an io.Writer is required.
+func (c *ServerConn) StorData(conn net.Conn, r io.Reader, offset uint64) error {
+	var errs *multierror.Error
+
+	// if the upload fails we still need to try to read the server
+	// response otherwise if the failure is not due to a connection problem,
+	// for example the server denied the upload for quota limits, we miss
+	// the response and we cannot use the connection to send other commands.
+	if n, err := io.Copy(conn, r); err != nil {
+		errs = multierror.Append(errs, err)
+	} else if n == 0 {
+		// If we wrote no bytes and got no error, make sure we call
+		// tls.Handshake on the connection as it won't get called
+		// unless Write() is called. (See comment in openDataConn()).
+		//
+		// ProFTP doesn't like this and returns "Unable to build data
+		// connection: Operation not permitted" when trying to upload
+		// an empty file without this.
+		if do, ok := conn.(interface{ Handshake() error }); ok {
+			if err := do.Handshake(); err != nil {
+				errs = multierror.Append(errs, err)
+			}
+		}
+	}
+
+	return errs.ErrorOrNil()
+}
+
+// StorFrom issues a STOR FTP command to store a file to the remote FTP server.
+// Stor creates the specified file with the content of the io.Reader, writing
+// on the server will start at the given file offset.
+//
+// Hint: io.Pipe() can be used if an io.Writer is required.
+func (c *ServerConn) StorEnd(conn net.Conn) error {
+	var errs *multierror.Error
+
+	if err := conn.Close(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	if err := c.checkDataShut(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return errs.ErrorOrNil()
+}
+
 // Append issues a APPE FTP command to store a file to the remote FTP server.
 // If a file already exists with the given path, then the content of the
 // io.Reader is appended. Otherwise, a new file is created with that content.
