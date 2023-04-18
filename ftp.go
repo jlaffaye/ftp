@@ -349,6 +349,15 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers
 // that allows anonymous read-only accounts.
 func (c *ServerConn) Login(user, password string) error {
+	if c.options.tlsConfig != nil && !c.options.explicitTLS {
+		if err := c.authTLS(); err != nil {
+			_ = c.Quit()
+			return err
+		}
+		tconn := tls.Client(c.netConn, c.options.tlsConfig)
+		c.conn = textproto.NewConn(c.options.wrapConn(tconn))
+	}
+
 	code, message, err := c.cmd(-1, "USER %s", user)
 	if err != nil {
 		return err
