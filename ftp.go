@@ -766,6 +766,10 @@ func (c *ServerConn) GetEntry(path string) (entry *Entry, err error) {
 		if len(l) > 0 && l[0] == ' ' {
 			l = l[1:]
 		}
+		// Some severs seem to send a blank line at the end which we ignore
+		if l == "" {
+			continue
+		}
 		if e, err = parseNextRFC3659ListLine(l, c.options.location, e); err != nil {
 			return nil, err
 		}
