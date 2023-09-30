@@ -6,12 +6,14 @@ import (
 	"io"
 	"net"
 	"net/textproto"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type ftpMock struct {
@@ -88,7 +90,7 @@ func (mock *ftpMock) listen() {
 		// At least one command must have a multiline response
 		switch cmdParts[0] {
 		case "FEAT":
-			features := "211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n"
+			features := "211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n MLST\r\n"
 			switch mock.modtime {
 			case "std-time":
 				features += " MDTM\r\n MFMT\r\n"
@@ -176,6 +178,23 @@ func (mock *ftpMock) listen() {
 			mock.dataConn.write([]byte("-rw-r--r--   1 ftp      wheel           0 Jan 29 10:29 lo\r\ntotal 1"))
 			mock.printfLine("226 Transfer complete")
 			mock.closeDataConn()
+		case "MLSD":
+			if mock.dataConn == nil {
+				mock.printfLine("425 Unable to build data connection: Connection refused")
+				break
+			}
+
+			mock.dataConn.Wait()
+			mock.printfLine("150 Opening data connection for file list")
+			mock.dataConn.write([]byte("Type=file;Size=0;Modify=20201213202400; lo\r\n"))
+			mock.printfLine("226 Transfer complete")
+			mock.closeDataConn()
+		case "MLST":
+			if cmdParts[1] == "multiline-dir" {
+				mock.printfLine("250-File data\r\n Type=dir;Size=0; multiline-dir\r\n Modify=20201213202400; multiline-dir\r\n250 End")
+			} else {
+				mock.printfLine("250-File data\r\n Type=file;Size=42;Modify=20201213202400; magic-file\r\n \r\n250 End")
+			}
 		case "NLST":
 			if mock.dataConn == nil {
 				mock.printfLine("425 Unable to build data connection: Connection refused")
@@ -386,20 +405,14 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 
 func openConnExt(t *testing.T, addr, modtime string, options ...DialOption) (*ftpMock, *ServerConn) {
 	mock, err := newFtpMockExt(t, addr, modtime)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer mock.Close()
 
 	c, err := Dial(mock.Addr(), options...)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = c.Login("anonymous", "anonymous")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return mock, c
 }
@@ -417,9 +430,7 @@ func closeConn(t *testing.T, mock *ftpMock, c *ServerConn, commands []string) {
 	// Wait for the connection to close
 	mock.Wait()
 
-	if !reflect.DeepEqual(mock.commands, expected) {
-		t.Fatal("unexpected sequence of commands:", mock.commands, "expected:", expected)
-	}
+	assert.Equal(t, expected, mock.commands, "unexpected sequence of commands")
 }
 
 func TestConn4(t *testing.T) {
