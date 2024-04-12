@@ -541,7 +541,25 @@ func (c *ServerConn) pasv() (host string, port int, err error) {
 
 	// Make the IP address to connect to
 	host = strings.Join(pasvData[0:4], ".")
+
+	
+	if c.host != host {
+		if cmdIP := net.ParseIP(c.host); cmdIP != nil {
+			if dataIP := net.ParseIP(host); dataIP != nil {
+				if isBogusDataIP(cmdIP, dataIP) {
+					return c.host, port, nil
+				}
+			}
+		}
+	}
 	return host, port, nil
+}
+
+func isBogusDataIP(cmdIP, dataIP net.IP) bool {
+	// Logic stolen from lftp (https://github.com/lavv17/lftp/blob/d67fc14d085849a6b0418bb3e912fea2e94c18d1/src/ftpclass.cc#L769)
+	return dataIP.IsMulticast() ||
+		cmdIP.IsPrivate() != dataIP.IsPrivate() ||
+		cmdIP.IsLoopback() != dataIP.IsLoopback()
 }
 
 // getDataConnPort returns a host, port for a new data connection
