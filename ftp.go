@@ -161,7 +161,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		return nil, err
 	}
 
-	tconn, err := dialFunc("tcp", fmt.Sprintf("%s:%s", addrs[0].IP.String(), port))
+	tconn, err := dialFunc("tcp", net.JoinHostPort(addrs[0].IP.String(), port))
 	if err != nil {
 		return nil, err
 	}
