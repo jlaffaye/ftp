@@ -1123,6 +1123,15 @@ func (c *ServerConn) Quit() error {
 	return errs.ErrorOrNil()
 }
 
+// Stat issues a STAT FTP command to obtain the status of a file or directory.
+func (c *ServerConn) Stat(path string) (string, error) {
+	_, msg, err := c.cmd(StatusFile, "STAT %s", path)
+	if err != nil {
+		return "", err
+	}
+	return msg, nil
+}
+
 // Read implements the io.Reader interface on a FTP data connection.
 func (r *Response) Read(buf []byte) (int, error) {
 	return r.conn.Read(buf)
