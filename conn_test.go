@@ -279,6 +279,12 @@ func (mock *ftpMock) listen() {
 		case "QUIT":
 			mock.printfLine("221 Goodbye.")
 			return
+		case "STAT":
+			if len(cmdParts) > 1 {
+				mock.printfLine("213-Status follows:\r\n%s\r\n213 End of status", strings.Join(cmdParts[1:], " "))
+			} else {
+				mock.printfLine("213-Status follows:\r\nFTP server status\r\n213 End of status")
+			}
 		default:
 			mock.printfLine("500 Unknown command %s.", cmdParts[0])
 		}

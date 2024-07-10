@@ -417,3 +417,29 @@ func TestDialWithDialer(t *testing.T) {
 
 	assert.Equal(t, true, dialerCalled)
 }
+
+func TestServerConn_Stat(t *testing.T) {
+	mock, c := openConn(t, "127.0.0.1")
+
+	defer func() {
+		err := c.Quit()
+		assert.NoError(t, err)
+		mock.Close()
+	}()
+
+	err := c.MakeDir(testDir)
+	assert.NoError(t, err)
+
+	testFile := testDir + "/testfile.txt"
+	data := bytes.NewBufferString(testData)
+	err = c.Stor(testFile, data)
+	assert.NoError(t, err)
+
+	status, err := c.Stat(testDir)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, status, "Expected non-empty status for directory")
+
+	status, err = c.Stat(testFile)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, status, "Expected non-empty status for file")
+}
