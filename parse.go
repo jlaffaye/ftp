@@ -25,6 +25,8 @@ var listLineParsers = []parseFunc{
 var dirTimeFormats = []string{
 	"01-02-06  03:04PM",
 	"2006-01-02  15:04",
+	"01-02-2006  03:04PM",
+	"01-02-2006  15:04",
 }
 
 // Empty string that saves the last string for VMS

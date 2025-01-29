@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
