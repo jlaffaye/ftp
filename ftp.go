@@ -85,6 +85,7 @@ type dialOptions struct {
 	debugOutput     io.Writer
 	dialFunc        func(network, address string) (net.Conn, error)
 	shutTimeout     time.Duration // time to wait for data connection closing status
+	clientName		string
 }
 
 // Entry describes a file and is returned by List().
@@ -177,6 +178,12 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 	}
 
 	return c, nil
+}
+// DialWithName returns a DialOption that configures the ServerConn with specified client name
+func DialWithName(name string) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.clientName = strings.TrimSpace(name)
+	}}
 }
 
 // DialWithTimeout returns a DialOption that configures the ServerConn with specified timeout
@@ -395,6 +402,13 @@ func (c *ServerConn) Login(user, password string) error {
 			return err
 		}
 		if _, _, err = c.cmd(StatusCommandOK, "PROT P"); err != nil {
+			return err
+		}
+	}
+
+	// If name can be set
+	if _, nameSupported := c.features["CLNT"]; nameSupported && c.options.clientName != "" {
+		if _, _, err = c.cmd(StatusCommandOK, "CLNT " + c.options.clientName); err != nil {
 			return err
 		}
 	}
