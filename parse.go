@@ -19,6 +19,7 @@ var listLineParsers = []parseFunc{
 	parseLsListLine,
 	parseDirListLine,
 	parseHostedFTPLine,
+	parseVMSFTPLine,
 }
 
 var dirTimeFormats = []string{
@@ -26,6 +27,73 @@ var dirTimeFormats = []string{
 	"2006-01-02  15:04",
 	"01-02-2006  03:04PM",
 	"01-02-2006  15:04",
+}
+
+// Empty string that saves the last string for VMS
+var previousString = ""
+
+func parseVMSFTPLine(s string, _ time.Time, location *time.Location) (*Entry, error) {
+	//If the string is empty, there are continuations on the next line(s)
+	if s == "" {
+		return nil, errUnsupportedListLine
+	}
+
+	scanner := newScanner(s)
+	filename := scanner.NextFields(1)[0]
+
+	// If the line does not contain a semicolon and there is nothing in previousString it is not a VMS FTP filename line
+	if !strings.Contains(filename, ";") && previousString == "" {
+		return nil, errUnsupportedListLine
+	}
+
+	remainingFields := scanner.NextFields(5)
+
+	// If there are no more fields then the current line has a continuation on the next line
+	if len(remainingFields) == 0 {
+		previousString = filename
+		return nil, errUnsupportedListLine
+	}
+
+	// If there is a previousString, then the current line is a continuation of the previous line
+	// Insert the current filename in remainingFields and set filename to previousString
+	if previousString != "" {
+		remainingFields = append([]string{filename}, remainingFields...)
+		filename = previousString
+		// Reset previousString
+		previousString = ""
+	}
+
+	if len(remainingFields) < 5 {
+		return nil, errUnsupportedListLine
+	}
+
+	entry := &Entry{}
+	// Files are formatted like this:
+	//  FILENAME.EXT;1                123/125  12-DEC-2017 14:10:37  [GROUP,OWNER] (RWED,RWED,RE,)
+	// Directories are formatted like this:
+	//  DIRECTORY.DIR;1               123/125  12-DEC-2017 14:10:37  [GROUP,OWNER] (RWED,RWED,RE,)
+
+	// Remove the version
+	parsedNameUnix := strings.Split(filename, ";")[0]
+
+	if strings.Contains(filename, ".DIR;") {
+		// Strip .DIR from parsedNameUnix
+		entry.Name = strings.Replace(parsedNameUnix, ".DIR", "", 1)
+		entry.Type = EntryTypeFolder
+		entry.Size = 0
+	} else {
+		entry.Name = parsedNameUnix
+		entry.Type = EntryTypeFile
+		// First number is the blocks used
+		parsedSize := strings.Split(remainingFields[0], "/")[0]
+
+		_ = entry.setSize(parsedSize)
+	}
+
+	// Parse the date
+	entry.Time, _ = time.ParseInLocation("_2-Jan-2006 15:04:05", remainingFields[1]+" "+remainingFields[2], location)
+
+	return entry, nil
 }
 
 // parseRFC3659ListLine parses the style of directory line defined in RFC 3659.
@@ -166,7 +234,7 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 
 // parseDirListLine parses a directory line in a format based on the output of
 // the MS-DOS DIR command.
-func parseDirListLine(line string, now time.Time, loc *time.Location) (*Entry, error) {
+func parseDirListLine(line string, _ time.Time, loc *time.Location) (*Entry, error) {
 	e := &Entry{}
 	var err error
 
