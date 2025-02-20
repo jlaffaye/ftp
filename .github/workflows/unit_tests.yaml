@@ -10,7 +10,7 @@ jobs:
       uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32
       with:
         go-version: 1.19
-    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57
+    - uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f
       with:
         path: |
           ~/go/pkg/mod
