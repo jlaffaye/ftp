@@ -571,8 +571,14 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 	}
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	var conn net.Conn
 	if c.options.dialFunc != nil {
-		return c.options.dialFunc("tcp", addr)
+		conn, err = c.options.dialFunc("tcp", addr)
+	} else {
+		conn, err = c.options.dialer.Dial("tcp", addr)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	if c.options.tlsConfig != nil {
@@ -588,15 +594,10 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 		// won't have been called. This is done in StorFrom().
 		//
 		// See: https://github.com/jlaffaye/ftp/issues/282
-		conn, err := c.options.dialer.Dial("tcp", addr)
-		if err != nil {
-			return nil, err
-		}
-		tlsConn := tls.Client(conn, c.options.tlsConfig)
-		return tlsConn, nil
+		conn = tls.Client(conn, c.options.tlsConfig)
 	}
 
-	return c.options.dialer.Dial("tcp", addr)
+	return conn, nil
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
@@ -656,7 +657,7 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 
 // Type switches the transfer mode for the connection.
 func (c *ServerConn) Type(transferType TransferType) (err error) {
-	_, _, err = c.cmd(StatusCommandOK, "TYPE "+string(transferType))
+	_, _, err = c.cmd(StatusCommandOK, "TYPE %s", transferType)
 	return err
 }
 
