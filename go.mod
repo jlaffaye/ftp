@@ -1,6 +1,6 @@
-module github.com/jlaffaye/ftp
+module github.com/medianexapp/ftp
 
-go 1.17
+go 1.24
 
 require (
 	github.com/hashicorp/go-multierror v1.1.1
