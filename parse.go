@@ -3,6 +3,7 @@ package ftp
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -24,8 +25,6 @@ var listLineParsers = []parseFunc{
 var dirTimeFormats = []string{
 	"01-02-06  03:04PM",
 	"2006-01-02  15:04",
-	"01-02-2006  03:04PM",
-	"01-02-2006  15:04",
 }
 
 // parseRFC3659ListLine parses the style of directory line defined in RFC 3659.
@@ -76,6 +75,19 @@ func parseNextRFC3659ListLine(line string, loc *time.Location, e *Entry) (*Entry
 			if err := e.setSize(value); err != nil {
 				return nil, err
 			}
+		case "unix.mode":
+			perm, _ := strconv.ParseUint(value, 8, 32)
+			e.Permissions = os.FileMode(perm)
+		case "unix.group":
+			gid, _ := strconv.Atoi(value)
+			e.GroupID = gid
+		case "unix.groupname":
+			e.GroupName = value
+		case "unix.owner":
+			uid, _ := strconv.Atoi(value)
+			e.OwnerID = uid
+		case "unix.ownername":
+			e.OwnerName = value
 		}
 	}
 	return e, nil
@@ -94,7 +106,6 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 
 	scanner := newScanner(line)
 	fields := scanner.NextFields(6)
-
 	if len(fields) < 6 {
 		return nil, errUnsupportedListLine
 	}
@@ -157,11 +168,54 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 		return nil, errUnknownListEntryType
 	}
 
+	//add permissions
+	fI, err := parsePermString(fields[0])
+	if err == nil {
+		e.Permissions = fI
+	} else {
+		e.Permissions = 0000
+	}
 	if err := e.setTime(fields[5:8], now, loc); err != nil {
 		return nil, err
 	}
-
+	//ownership
+	e.OwnerName = fields[2]
+	e.GroupName = fields[3]
 	return e, nil
+}
+
+func parsePermString(permStr string) (os.FileMode, error) {
+	if len(permStr) != 10 {
+		return 0, fmt.Errorf("invalid length: %d", len(permStr))
+	}
+	perms := permStr[1:]
+	var mode os.FileMode
+
+	switch permStr[0] {
+	case 'd':
+		mode |= os.ModeDir
+	case 'l':
+		mode |= os.ModeSymlink
+	case '-':
+		// file
+	}
+	for i, c := range perms {
+		shift := uint(8 - i)
+		switch c {
+		case 'r':
+			mode |= 1 << (shift)
+		case 'w':
+			mode |= 1 << (shift)
+		case 'x':
+			mode |= 1 << (shift)
+		case '-':
+			// do nothing
+		default:
+			return 0, fmt.Errorf("invalid char: %c", c)
+		}
+	}
+
+	return mode, nil
 }
 
 // parseDirListLine parses a directory line in a format based on the output of
