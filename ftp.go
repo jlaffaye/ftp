@@ -602,10 +602,13 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 // cmd is a helper function to execute a command and check for the expected FTP
 // return code
 func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int, string, error) {
-	_, err := c.conn.Cmd(format, args...)
+	id, err := c.conn.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
 	}
+
+	c.conn.StartResponse(id)
+	defer c.conn.EndResponse(id)
 
 	return c.conn.ReadResponse(expected)
 }
