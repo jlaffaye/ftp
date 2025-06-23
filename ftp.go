@@ -778,9 +778,9 @@ func (c *ServerConn) GetEntry(path string) (entry *Entry, err error) {
 	e := &Entry{}
 	for _, l := range lines[1 : lc-1] {
 		// According to RFC 3659, the entry lines must start with a space when passed over the
-		// control connection. Some servers don't seem to add that space though. Both forms are
-		// accepted here.
-		if len(l) > 0 && l[0] == ' ' {
+		// control connection. Some servers don't seem to add that space though and some servers
+		// add multiple spaces. All forms are accepted here.
+		for len(l) > 0 && l[0] == ' ' {
 			l = l[1:]
 		}
 		// Some severs seem to send a blank line at the end which we ignore
