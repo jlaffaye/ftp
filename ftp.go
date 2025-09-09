@@ -1071,6 +1071,41 @@ func (c *ServerConn) MakeDir(path string) error {
 	return err
 }
 
+// MakeDirRecur create a folder recursively using
+// MakeDir and ChangeDir
+func (c *ServerConn) MakeDirRecur(folder string) error {
+	// save current dir path
+	currentDir, err := c.CurrentDir()
+	if err != nil {
+		return err
+	}
+	dirs := strings.Split(folder, "/")
+	for _, dir := range dirs {
+		if dir == "" {
+			continue
+		}
+		// check if dir exists
+		err := c.ChangeDir(dir)
+		if err == nil {
+			continue
+		}
+		err = c.MakeDir(dir)
+		if err != nil {
+			return err
+		}
+		err = c.ChangeDir(dir)
+		if err != nil {
+			return err
+		}
+	}
+	// move to origin dir
+	err = c.ChangeDir(currentDir)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // RemoveDir issues a RMD FTP command to remove the specified directory from
 // the remote FTP server.
 func (c *ServerConn) RemoveDir(path string) error {
