@@ -45,33 +45,6 @@ const (
 // Time format used by the MDTM and MFMT commands
 const timeFormat = "20060102150405"
 
-// combineErrors combines multiple errors into a single error using fmt.Errorf and %w.
-// It returns nil if no errors are provided or all errors are nil.
-func combineErrors(errs ...error) error {
-	var nonNilErrs []error
-	for _, err := range errs {
-		if err != nil {
-			nonNilErrs = append(nonNilErrs, err)
-		}
-	}
-	
-	switch len(nonNilErrs) {
-	case 0:
-		return nil
-	case 1:
-		return nonNilErrs[0]
-	case 2:
-		return fmt.Errorf("%w; %v", nonNilErrs[0], nonNilErrs[1])
-	default:
-		// For more than 2 errors, wrap the first with all others as a single string
-		var errStrs []string
-		for _, err := range nonNilErrs[1:] {
-			errStrs = append(errStrs, err.Error())
-		}
-		return fmt.Errorf("%w; %s", nonNilErrs[0], strings.Join(errStrs, "; "))
-	}
-}
-
 // ServerConn represents the connection to a remote FTP server.
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
@@ -713,7 +686,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 		errs = append(errs, err)
 	}
 
-	return entries, combineErrors(errs...)
+	return entries, errors.Join(errs...)
 }
 
 // List issues a LIST FTP command.
@@ -761,7 +734,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		errs = append(errs, err)
 	}
 
-	return entries, combineErrors(errs...)
+	return entries, errors.Join(errs...)
 }
 
 // GetEntry issues a MLST FTP command which retrieves one single Entry using the
@@ -1001,7 +974,7 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 		errs = append(errs, err)
 	}
 
-	return combineErrors(errs...)
+	return errors.Join(errs...)
 }
 
 // Append issues a APPE FTP command to store a file to the remote FTP server.
@@ -1029,7 +1002,7 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 		errs = append(errs, err)
 	}
 
-	return combineErrors(errs...)
+	return errors.Join(errs...)
 }
 
 // Rename renames a file on the remote FTP server.
@@ -1146,7 +1119,7 @@ func (c *ServerConn) Quit() error {
 		errs = append(errs, err)
 	}
 
-	return combineErrors(errs...)
+	return errors.Join(errs...)
 }
 
 // Read implements the io.Reader interface on a FTP data connection.
@@ -1172,7 +1145,7 @@ func (r *Response) Close() error {
 	}
 
 	r.closed = true
-	return combineErrors(errs...)
+	return errors.Join(errs...)
 }
 
 // SetDeadline sets the deadlines associated with the connection.
