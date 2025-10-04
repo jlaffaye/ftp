@@ -484,7 +484,7 @@ func (c *ServerConn) epsv() (port int, err error) {
 
 	start := strings.Index(line, "|||")
 	end := strings.LastIndex(line, "|")
-	if start == -1 || end == -1 {
+	if start == -1 || start+3 >= end {
 		return 0, errors.New("invalid EPSV response format")
 	}
 	port, err = strconv.Atoi(line[start+3 : end])
