@@ -29,7 +29,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	assert := assert.New(t)
 	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second), DialWithDisabledEPSV(disableEPSV))
 
-	err := c.Login("anonymous", "anonymous")
+	err := c.Login("ftp-test", "ftp-test")
 	assert.NoError(err)
 
 	err = c.NoOp()

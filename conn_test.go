@@ -100,7 +100,7 @@ func (mock *ftpMock) listen() {
 			features += "211 End"
 			mock.printfLine(features)
 		case "USER":
-			if cmdParts[1] == "anonymous" {
+			if cmdParts[1] == "ftp-test" {
 				mock.printfLine("331 Please send your password")
 			} else {
 				mock.printfLine("530 This FTP server is anonymous only")
@@ -411,7 +411,7 @@ func openConnExt(t *testing.T, addr, modtime string, options ...DialOption) (*ft
 	c, err := Dial(mock.Addr(), options...)
 	require.NoError(t, err)
 
-	err = c.Login("anonymous", "anonymous")
+	err = c.Login("ftp-test", "ftp-test")
 	require.NoError(t, err)
 
 	return mock, c
