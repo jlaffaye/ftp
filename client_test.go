@@ -47,6 +47,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 	err = c.Stor("test", data)
 	assert.NoError(err)
 
+	err = c.Chmod("test", 0o755)
+	assert.NoError(err)
+
 	_, err = c.List(".")
 	assert.NoError(err)
 
@@ -126,6 +129,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if entry.Name != "magic-file" {
 		t.Errorf("entry name %q, expected %q", entry.Name, "magic-file")
 	}
+	assert.Equal(0o644, entry.FileMode.Perm())
 
 	entry, err = c.GetEntry("multiline-dir")
 	if err != nil {
@@ -143,6 +147,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if entry.Name != "multiline-dir" {
 		t.Errorf("entry name %q, expected %q", entry.Name, "multiline-dir")
 	}
+	assert.Equal(0o755, entry.FileMode.Perm())
+	err = c.Chmod("multiline-dir", 0o744)
+	assert.NoError(err)
 
 	err = c.Delete("tset")
 	assert.NoError(err)
