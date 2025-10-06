@@ -8,9 +8,11 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -89,11 +91,12 @@ type dialOptions struct {
 
 // Entry describes a file and is returned by List().
 type Entry struct {
-	Name   string
-	Target string // target of symbolic link
-	Type   EntryType
-	Size   uint64
-	Time   time.Time
+	Name     string
+	FileMode os.FileMode
+	Target   string // target of symbolic link
+	Type     EntryType
+	Size     uint64
+	Time     time.Time
 }
 
 // Response represents a data-connection
@@ -1121,6 +1124,12 @@ func (c *ServerConn) Quit() error {
 	}
 
 	return errs.ErrorOrNil()
+}
+
+// Chmod issues a SITE CHMOD command to set permissions for file/directory
+func (c *ServerConn) Chmod(path string, perm os.FileMode) error {
+	_, _, err := c.cmd(StatusCommandOK, "SITE CHMOD %s %s", fmt.Sprintf("%o", perm.Perm()), path)
+	return err
 }
 
 // Read implements the io.Reader interface on a FTP data connection.

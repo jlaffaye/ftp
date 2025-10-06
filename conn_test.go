@@ -100,7 +100,7 @@ func (mock *ftpMock) listen() {
 			features += "211 End"
 			mock.printfLine(features)
 		case "USER":
-			if cmdParts[1] == "anonymous" {
+			if cmdParts[1] == "ftp-test" {
 				mock.printfLine("331 Please send your password")
 			} else {
 				mock.printfLine("530 This FTP server is anonymous only")
@@ -191,9 +191,9 @@ func (mock *ftpMock) listen() {
 			mock.closeDataConn()
 		case "MLST":
 			if cmdParts[1] == "multiline-dir" {
-				mock.printfLine("250-File data\r\n Type=dir;Size=0; multiline-dir\r\n Modify=20201213202400; multiline-dir\r\n250 End")
+				mock.printfLine("250-File data\r\n Type=dir;Size=0;UNIX.mode=0755; multiline-dir\r\n Modify=20201213202400; multiline-dir\r\n250 End")
 			} else {
-				mock.printfLine("250-File data\r\n Type=file;Size=42;Modify=20201213202400; magic-file\r\n \r\n250 End")
+				mock.printfLine("250-File data\r\n Type=file;Size=42;Modify=20201213202400;UNIX.mode=0644; magic-file\r\n \r\n250 End")
 			}
 		case "NLST":
 			if mock.dataConn == nil {
@@ -273,6 +273,21 @@ func (mock *ftpMock) listen() {
 			}
 			if (strings.Join(cmdParts[1:], " ")) == "UTF8 ON" {
 				mock.printfLine("200 OK, UTF-8 enabled")
+			}
+		case "SITE":
+			if len(cmdParts) < 2 {
+				mock.printfLine("500 SITE command needs argument")
+				break
+			}
+			switch cmdParts[1] {
+			case "CHMOD":
+				if len(cmdParts) != 4 {
+					mock.printfLine("500 SITE CHMOD needs mode and path arguments")
+					break
+				}
+				mock.printfLine("200 SITE CHMOD command successful")
+			default:
+				mock.printfLine("500 Unknown SITE command %s", cmdParts[1])
 			}
 		case "REIN":
 			mock.printfLine("220 Logged out")
@@ -411,7 +426,7 @@ func openConnExt(t *testing.T, addr, modtime string, options ...DialOption) (*ft
 	c, err := Dial(mock.Addr(), options...)
 	require.NoError(t, err)
 
-	err = c.Login("anonymous", "anonymous")
+	err = c.Login("ftp-test", "ftp-test")
 	require.NoError(t, err)
 
 	return mock, c
