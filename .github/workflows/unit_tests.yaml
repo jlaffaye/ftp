@@ -7,10 +7,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4.2.2
     - name: Setup go
-      uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
       with:
         go-version: 1.19
-    - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
         path: |
           ~/go/pkg/mod
@@ -21,7 +21,7 @@ jobs:
     - name: Run tests
       run: go test -v -covermode=count -coverprofile=coverage.out
     - name: Convert coverage to lcov
-      uses: jandelgado/gcov2lcov-action@4e1989767862652e6ca8d3e2e61aabe6d43be28b
+      uses: jandelgado/gcov2lcov-action@e4612787670fc5b5f49026b8c29c5569921de1db
     - name: Coveralls
       uses: coverallsapp/github-action@648a8eb78e6d50909eff900e4ec85cab4524a45b
       with:
