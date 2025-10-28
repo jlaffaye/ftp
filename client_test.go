@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/textproto"
 	"syscall"
 	"testing"
 	"time"
@@ -416,4 +417,48 @@ func TestDialWithDialer(t *testing.T) {
 	assert.NoError(t, c.Quit())
 
 	assert.Equal(t, true, dialerCalled)
+}
+
+func runEPSVWithResponse(response string) (int, error) {
+	client, server := net.Pipe()
+	tpServer := textproto.NewConn(server)
+	go func() {
+		defer tpServer.Close()
+		_, _ = tpServer.ReadLine()
+		tpServer.PrintfLine("229 %s", response)
+	}()
+
+	c := &ServerConn{options: &dialOptions{}, conn: textproto.NewConn(client)}
+	defer c.conn.Close()
+	return c.epsv()
+}
+
+func TestEPSV_Parse_Valid(t *testing.T) {
+	port, err := runEPSVWithResponse("Entering Extended Passive Mode (|||4242|)")
+	assert.NoError(t, err)
+	assert.Equal(t, 4242, port)
+}
+
+func TestEPSV_Parse_MissingTrailingPipe_ShouldError(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("epsv() panicked, want graceful error: %v", r)
+		}
+	}()
+	_, err := runEPSVWithResponse("Entering Extended Passive Mode (|||4242)")
+	if err == nil {
+		t.Fatalf("expected error for malformed EPSV response, got nil")
+	}
+}
+
+func TestEPSV_Parse_MissingPortBetweenPipes_ShouldError(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("epsv() panicked, want graceful error: %v", r)
+		}
+	}()
+	_, err := runEPSVWithResponse("Entering Extended Passive Mode (||||)")
+	if err == nil {
+		t.Fatalf("expected error for malformed EPSV response, got nil")
+	}
 }
