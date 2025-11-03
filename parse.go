@@ -3,10 +3,20 @@ package ftp
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var permMap = []struct {
+	char byte
+	bit  os.FileMode
+}{
+	{'r', 0400}, {'w', 0200}, {'x', 0100}, // owner
+	{'r', 0040}, {'w', 0020}, {'x', 0010}, // group
+	{'r', 0004}, {'w', 0002}, {'x', 0001}, // others
+}
 
 var errUnsupportedListLine = errors.New("unsupported LIST line")
 var errUnsupportedListDate = errors.New("unsupported LIST date")
@@ -59,6 +69,12 @@ func parseNextRFC3659ListLine(line string, loc *time.Location, e *Entry) (*Entry
 		value := field[i+1:]
 
 		switch key {
+		case "unix.mode":
+			if parsedFileMode, err := strconv.ParseInt(value, 8, 64); err != nil {
+				return nil, err
+			} else {
+				e.FileMode = os.FileMode(parsedFileMode)
+			}
 		case "modify":
 			var err error
 			e.Time, err = time.ParseInLocation("20060102150405", value, loc)
@@ -99,6 +115,16 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 		return nil, errUnsupportedListLine
 	}
 
+	fileMode := os.FileMode(0)
+	if len(fields[0]) == 10 {
+		for i, pm := range permMap {
+			c := fields[0][i+1]
+			if c == pm.char || (pm.char == 'x' && c == 's') {
+				fileMode |= pm.bit
+			}
+		}
+	}
+
 	if fields[1] == "folder" && fields[2] == "0" {
 		e := &Entry{
 			Type: EntryTypeFolder,
@@ -135,7 +161,8 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	}
 
 	e := &Entry{
-		Name: scanner.Remaining(),
+		FileMode: fileMode,
+		Name:     scanner.Remaining(),
 	}
 	switch fields[0][0] {
 	case '-':

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	assert := assert.New(t)
 	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second), DialWithDisabledEPSV(disableEPSV))
 
-	err := c.Login("anonymous", "anonymous")
+	err := c.Login("ftp-test", "ftp-test")
 	assert.NoError(err)
 
 	err = c.NoOp()
@@ -45,6 +46,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 
 	data := bytes.NewBufferString(testData)
 	err = c.Stor("test", data)
+	assert.NoError(err)
+
+	err = c.Chmod("test", 0o755)
 	assert.NoError(err)
 
 	_, err = c.List(".")
@@ -126,6 +130,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if entry.Name != "magic-file" {
 		t.Errorf("entry name %q, expected %q", entry.Name, "magic-file")
 	}
+	assert.Equal(os.FileMode(0o644).Perm(), entry.FileMode.Perm())
 
 	entry, err = c.GetEntry("multiline-dir")
 	if err != nil {
@@ -143,6 +148,9 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if entry.Name != "multiline-dir" {
 		t.Errorf("entry name %q, expected %q", entry.Name, "multiline-dir")
 	}
+	assert.Equal(os.FileMode(0o755).Perm(), entry.FileMode.Perm())
+	err = c.Chmod("multiline-dir", 0o744)
+	assert.NoError(err)
 
 	err = c.Delete("tset")
 	assert.NoError(err)
