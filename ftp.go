@@ -56,7 +56,7 @@ type ServerConn struct {
 	host    string
 
 	// Server capabilities discovered at runtime
-	features      map[string]string
+	Features      map[string]string
 	skipEPSV      bool
 	mlstSupported bool
 	mfmtSupported bool
@@ -155,7 +155,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 
 	c := &ServerConn{
 		options:  do,
-		features: make(map[string]string),
+		Features: make(map[string]string),
 		conn:     textproto.NewConn(do.wrapConn(tconn)),
 		netConn:  tconn,
 		host:     remoteAddr.IP.String(),
@@ -366,17 +366,17 @@ func (c *ServerConn) Login(user, password string) error {
 	}
 
 	// Probe features
-	err = c.feat()
+	_, err = c.Feat()
 	if err != nil {
 		return err
 	}
-	if _, mlstSupported := c.features["MLST"]; mlstSupported && !c.options.disableMLSD {
+	if _, mlstSupported := c.Features["MLST"]; mlstSupported && !c.options.disableMLSD {
 		c.mlstSupported = true
 	}
-	_, c.usePRET = c.features["PRET"]
+	_, c.usePRET = c.Features["PRET"]
 
-	_, c.mfmtSupported = c.features["MFMT"]
-	_, c.mdtmSupported = c.features["MDTM"]
+	_, c.mfmtSupported = c.Features["MFMT"]
+	_, c.mdtmSupported = c.Features["MDTM"]
 	c.mdtmCanWrite = c.mdtmSupported && c.options.writingMDTM
 
 	// Switch to binary mode
@@ -411,16 +411,16 @@ func (c *ServerConn) authTLS() error {
 // feat issues a FEAT FTP command to list the additional commands supported by
 // the remote FTP server.
 // FEAT is described in RFC 2389
-func (c *ServerConn) feat() error {
+func (c *ServerConn) Feat() (map[string]string, error) {
 	code, message, err := c.cmd(-1, "FEAT")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if code != StatusSystem {
 		// The server does not support the FEAT command. This is not an
 		// error: we consider that there is no additional feature.
-		return nil
+		return nil, nil
 	}
 
 	lines := strings.Split(message, "\n")
@@ -439,15 +439,15 @@ func (c *ServerConn) feat() error {
 			commandDesc = featureElements[1]
 		}
 
-		c.features[command] = commandDesc
+		c.Features[command] = commandDesc
 	}
 
-	return nil
+	return c.Features, nil
 }
 
 // setUTF8 issues an "OPTS UTF8 ON" command.
 func (c *ServerConn) setUTF8() error {
-	if _, ok := c.features["UTF8"]; !ok {
+	if _, ok := c.Features["UTF8"]; !ok {
 		return nil
 	}
 
@@ -608,6 +608,10 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 	}
 
 	return c.conn.ReadResponse(expected)
+}
+
+func (c *ServerConn) Cmd(expected int, format string, args ...interface{}) (int, string, error) {
+	return c.cmd(expected, format, args...)
 }
 
 // cmdDataConnFrom executes a command which require a FTP data connection.
