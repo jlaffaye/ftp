@@ -161,11 +161,30 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		host:     remoteAddr.IP.String(),
 	}
 
-	_, _, err = c.conn.ReadResponse(StatusReady)
-	if err != nil {
-		_ = c.Quit()
-		return nil, err
+	readyChan := make(chan error, 1)
+	go func(c *ServerConn) {
+		_, _, err = c.conn.ReadResponse(StatusReady)
+		if err != nil {
+			_ = c.Quit()
+			readyChan <- err
+			return
+		}
+		readyChan <- nil
+	}(c)
+
+	readyTimeer := time.NewTimer(do.dialer.Timeout)
+	select {
+		case err = <-readyChan:{
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+		case <-readyTimeer.C:{
+			return nil, errors.New("Timeout waiting for server to be ready, maybe need TLS?")
+		}
 	}
+	close(readyChan)
 
 	if do.explicitTLS {
 		if err := c.authTLS(); err != nil {
