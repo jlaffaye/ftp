@@ -480,13 +480,17 @@ func (c *ServerConn) epsv() (port int, err error) {
 		return 0, err
 	}
 
+	return parseEPSV(line)
+}
+
+func parseEPSV(line string) (int, error) {
 	start := strings.Index(line, "|||")
 	end := strings.LastIndex(line, "|")
-	if start == -1 || end == -1 {
+	if start == -1 || start+3 >= end {
 		return 0, errors.New("invalid EPSV response format")
 	}
-	port, err = strconv.Atoi(line[start+3 : end])
-	return port, err
+
+	return strconv.Atoi(line[start+3 : end])
 }
 
 // pasv issues a "PASV" command to get a port number for a data connection.
