@@ -88,7 +88,7 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	// Has the first field a length of exactly 10 bytes
 	// - or 10 bytes with an additional '+' character for indicating ACLs?
 	// If not, return.
-	if i := strings.IndexByte(line, ' '); !(i == 10 || (i == 11 && line[10] == '+')) {
+	if i := strings.IndexByte(line, ' '); i != 10 && (i != 11 || line[10] != '+') {
 		return nil, errUnsupportedListLine
 	}
 

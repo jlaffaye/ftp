@@ -68,12 +68,11 @@ func (mock *ftpMock) listen() {
 		return
 	}
 
-	// Do not accept incoming connections anymore
-	mock.listener.Close()
-
 	mock.Add(1)
-	defer mock.Done()
-	defer conn.Close()
+	defer func() {
+		assert.NoError(mock.t, conn.Close(), "closing conn after listen")
+		mock.Done()
+	}()
 
 	mock.proto = textproto.NewConn(conn)
 	mock.printfLine("220 FTP Server ready.")
@@ -286,7 +285,7 @@ func (mock *ftpMock) listen() {
 }
 
 func (mock *ftpMock) printfLine(format string, args ...interface{}) {
-	if err := mock.proto.Writer.PrintfLine(format, args...); err != nil {
+	if err := mock.proto.PrintfLine(format, args...); err != nil {
 		mock.t.Fatal(err)
 	}
 }
@@ -395,7 +394,7 @@ func (mock *ftpMock) Addr() string {
 
 // Closes the listening socket
 func (mock *ftpMock) Close() {
-	mock.listener.Close()
+	assert.NoError(mock.t, mock.listener.Close(), "closing listener")
 }
 
 // Helper to return a client connected to a mock server
