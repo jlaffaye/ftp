@@ -193,7 +193,7 @@ func (mock *ftpMock) listen() {
 			if cmdParts[1] == "multiline-dir" {
 				mock.printfLine("250-File data\r\n Type=dir;Size=0; multiline-dir\r\n Modify=20201213202400; multiline-dir\r\n250 End")
 			} else {
-				mock.printfLine("250-File data\r\n Type=file;Size=42;Modify=20201213202400; magic-file\r\n \r\n250 End")
+				mock.printfLine("250-File data\r\n  Type=file;Size=42;Modify=20201213202400; magic-file\r\n \r\n250 End")
 			}
 		case "NLST":
 			if mock.dataConn == nil {
