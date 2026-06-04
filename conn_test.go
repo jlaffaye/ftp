@@ -98,7 +98,7 @@ func (mock *ftpMock) listen() {
 				features += " MDTM\r\n"
 			}
 			features += "211 End"
-			mock.printfLine(features)
+			mock.printfLine("%s", features)
 		case "USER":
 			if cmdParts[1] == "anonymous" {
 				mock.printfLine("331 Please send your password")
@@ -250,7 +250,7 @@ func (mock *ftpMock) listen() {
 			default:
 				answer = "500 wrong number of arguments"
 			}
-			mock.printfLine(answer)
+			mock.printfLine("%s", answer)
 		case "MFMT":
 			var answer string
 			switch {
@@ -263,7 +263,7 @@ func (mock *ftpMock) listen() {
 			default:
 				answer = "500 Unknown command MFMT"
 			}
-			mock.printfLine(answer)
+			mock.printfLine("%s", answer)
 		case "NOOP":
 			mock.printfLine("200 NOOP ok.")
 		case "OPTS":

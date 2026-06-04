@@ -118,7 +118,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Fatal("expected entry, got nil")
 	}
 	if entry.Size != 42 {
-		t.Errorf("entry size %q, expected %q", entry.Size, 42)
+		t.Errorf("entry size %d, expected %d", entry.Size, 42)
 	}
 	if entry.Type != EntryTypeFile {
 		t.Errorf("entry type %q, expected %q", entry.Type, EntryTypeFile)
@@ -135,7 +135,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		t.Fatal("expected entry, got nil")
 	}
 	if entry.Size != 0 {
-		t.Errorf("entry size %q, expected %q", entry.Size, 0)
+		t.Errorf("entry size %d, expected %d", entry.Size, 0)
 	}
 	if entry.Type != EntryTypeFolder {
 		t.Errorf("entry type %q, expected %q", entry.Type, EntryTypeFolder)

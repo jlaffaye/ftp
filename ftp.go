@@ -654,7 +654,7 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 
 // Type switches the transfer mode for the connection.
 func (c *ServerConn) Type(transferType TransferType) (err error) {
-	_, _, err = c.cmd(StatusCommandOK, "TYPE "+string(transferType))
+	_, _, err = c.cmd(StatusCommandOK, "TYPE %s", string(transferType))
 	return err
 }
 
