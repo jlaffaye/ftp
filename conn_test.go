@@ -17,16 +17,17 @@ import (
 )
 
 type ftpMock struct {
-	t        *testing.T
-	address  string
-	modtime  string // no-time, std-time, vsftpd
-	listener *net.TCPListener
-	proto    *textproto.Conn
-	commands []string // list of received commands
-	lastFull string   // full last command
-	rest     int
-	fileCont *bytes.Buffer
-	dataConn *mockDataConn
+	t             *testing.T
+	address       string
+	modtime       string // no-time, std-time, vsftpd
+	listener      *net.TCPListener
+	proto         *textproto.Conn
+	commands      []string // list of received commands
+	lastFull      string   // full last command
+	rest          int
+	fileCont      *bytes.Buffer
+	dataConn      *mockDataConn
+	dataConnPorts []int64
 	sync.WaitGroup
 }
 
@@ -186,8 +187,9 @@ func (mock *ftpMock) listen() {
 			mock.dataConn.Wait()
 			mock.printfLine("150 Opening data connection for file list")
 			mock.dataConn.write([]byte("Type=file;Size=0;Modify=20201213202400; lo\r\n"))
-			mock.printfLine("226 Transfer complete")
 			mock.closeDataConn()
+			mock.printfLine("226 Transfer complete")
+
 		case "MLST":
 			if cmdParts[1] == "multiline-dir" {
 				mock.printfLine("250-File data\r\n Type=dir;Size=0; multiline-dir\r\n Modify=20201213202400; multiline-dir\r\n250 End")
@@ -369,6 +371,8 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 		dataConn.conn = conn
 		dataConn.Done()
 	}()
+
+	mock.dataConnPorts = append(mock.dataConnPorts, p)
 
 	mock.dataConn = dataConn
 	return p, nil

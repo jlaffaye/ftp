@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -416,4 +417,23 @@ func TestDialWithDialer(t *testing.T) {
 	assert.NoError(t, c.Quit())
 
 	assert.Equal(t, true, dialerCalled)
+}
+
+func TestDebug(t *testing.T) {
+	buf := &bytes.Buffer{}
+	mock, c := openConnExt(t, "127.0.0.1", "vsftpd", DialWithDebugOutput(buf))
+
+	_, err := c.List(".")
+	require.NoError(t, err, "List")
+
+	c.Quit()
+
+	output, err := io.ReadAll(buf)
+	require.NoError(t, err, "ReadAll")
+
+	expected := fmt.Sprintf("220 FTP Server ready.\r\nUSER anonymous\r\n331 Please send your password\r\nPASS anonymous\r\n230-Hey,\r\nWelcome to my FTP\r\n230 Access granted\r\nFEAT\r\n211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n UTF8\r\n SIZE\r\n MLST\r\n MDTM\r\n211 End\r\nTYPE I\r\n200 Type set ok\r\nOPTS UTF8 ON\r\n200 OK, UTF-8 enabled\r\nEPSV\r\n229 Entering Extended Passive Mode (|||%d|)\r\nMLSD .\r\n150 Opening data connection for file list\r\nType=file;Size=0;Modify=20201213202400; lo\r\n226 Transfer complete\r\nQUIT\r\n",
+		mock.dataConnPorts[0],
+	)
+	assert.Equal(t, expected, string(output))
+	mock.Wait()
 }
