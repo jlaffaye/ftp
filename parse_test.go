@@ -81,6 +81,10 @@ var listTests = []line{
 
 	// Line with ACL persmissions
 	{"-rwxrw-r--+  1 521      101         2080 May 21 10:53 data.csv", "data.csv", 2080, EntryTypeFile, newTime(thisYear, time.May, 21, 10, 53)},
+
+	// OPENVMS style
+	{"DATA.DIR;1              1/576          4-JAN-2022 14:14:36  [SCANCO,MICROCT]       (RWE,RWE,RE,)", "DATA", 0, EntryTypeFolder, newTime(2022, time.January, 4, 14, 14, 36)},
+	{"DECW$SM.LOG;247         0/576         17-MAY-2023 15:20:28  [SCANCO,MICROCT]       (RWED,RWED,RE,)", "DECW$SM.LOG", 0, EntryTypeFile, newTime(2023, time.May, 17, 15, 20, 28)},
 }
 
 var listTestsSymlink = []symlinkLine{
@@ -98,19 +102,20 @@ var listTestsFail = []unsupportedLine{
 	{"total 1", errUnsupportedListLine},
 	{"000000000x ", errUnsupportedListLine}, // see https://github.com/jlaffaye/ftp/issues/97
 	{"", errUnsupportedListLine},
+	{"DECW$SM.LOG;247", errUnsupportedListLine}, //This is the case where VMS has a continuation on the next line
 }
 
 func TestParseValidListLine(t *testing.T) {
 	for _, lt := range listTests {
 		t.Run(lt.line, func(t *testing.T) {
-			assert := assert.New(t)
+			assertions := assert.New(t)
 			entry, err := parseListLine(lt.line, now, time.UTC)
 
-			if assert.NoError(err) {
-				assert.Equal(lt.name, entry.Name)
-				assert.Equal(lt.entryType, entry.Type)
-				assert.Equal(lt.size, entry.Size)
-				assert.Equal(lt.time, entry.Time)
+			if assertions.NoError(err) {
+				assertions.Equal(lt.name, entry.Name)
+				assertions.Equal(lt.entryType, entry.Type)
+				assertions.Equal(lt.size, entry.Size)
+				assertions.Equal(lt.time, entry.Time)
 			}
 		})
 	}
@@ -119,13 +124,13 @@ func TestParseValidListLine(t *testing.T) {
 func TestParseSymlinks(t *testing.T) {
 	for _, lt := range listTestsSymlink {
 		t.Run(lt.line, func(t *testing.T) {
-			assert := assert.New(t)
+			assertions := assert.New(t)
 			entry, err := parseListLine(lt.line, now, time.UTC)
 
-			if assert.NoError(err) {
-				assert.Equal(lt.name, entry.Name)
-				assert.Equal(lt.target, entry.Target)
-				assert.Equal(EntryTypeLink, entry.Type)
+			if assertions.NoError(err) {
+				assertions.Equal(lt.name, entry.Name)
+				assertions.Equal(lt.target, entry.Target)
+				assertions.Equal(EntryTypeLink, entry.Type)
 			}
 		})
 	}
@@ -173,7 +178,7 @@ func TestSettime(t *testing.T) {
 
 // newTime builds a UTC time from the given year, month, day, hour and minute
 func newTime(year int, month time.Month, day int, hourMinSec ...int) time.Time {
-	var hour, min, sec int
+	var hour, minute, sec int
 
 	switch len(hourMinSec) {
 	case 0:
@@ -182,7 +187,7 @@ func newTime(year int, month time.Month, day int, hourMinSec ...int) time.Time {
 		sec = hourMinSec[2]
 		fallthrough
 	case 2:
-		min = hourMinSec[1]
+		minute = hourMinSec[1]
 		fallthrough
 	case 1:
 		hour = hourMinSec[0]
@@ -190,5 +195,5 @@ func newTime(year int, month time.Month, day int, hourMinSec ...int) time.Time {
 		panic("too many arguments")
 	}
 
-	return time.Date(year, month, day, hour, min, sec, 0, time.UTC)
+	return time.Date(year, month, day, hour, minute, sec, 0, time.UTC)
 }
