@@ -9,7 +9,7 @@ jobs:
       contents: read  # for actions/checkout to fetch code
       pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
