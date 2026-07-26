@@ -1,4 +1,4 @@
-module github.com/jlaffaye/ftp
+module github.com/xiatechs/ftp
 
 go 1.20
 

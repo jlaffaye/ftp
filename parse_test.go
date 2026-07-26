@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -191,4 +192,63 @@ func newTime(year int, month time.Month, day int, hourMinSec ...int) time.Time {
 	}
 
 	return time.Date(year, month, day, hour, min, sec, 0, time.UTC)
+}
+
+// TestParseAS400ListLine pins support for IBM i (AS/400) QTCP FTP servers,
+// whose native LIST format none of the parsers above recognise.
+func TestParseAS400ListLine(t *testing.T) {
+	t.Run("a real AS/400 stream file line parses", func(t *testing.T) {
+		line := "USERNAME            31 26/07/26 11:02:23 *STMF      EXAMPLE_FILE.xml"
+
+		entry, err := parseAS400ListLine(line, time.Now(), time.UTC)
+		require.NoError(t, err)
+		require.Equal(t, "EXAMPLE_FILE.xml", entry.Name)
+		require.Equal(t, EntryTypeFile, entry.Type)
+		require.Equal(t, uint64(31), entry.Size)
+		require.Equal(t, time.Date(2026, time.July, 26, 11, 2, 23, 0, time.UTC), entry.Time)
+	})
+
+	t.Run("a directory parses as a folder", func(t *testing.T) {
+		line := "USERNAME            10 26/07/26 11:02:23 *DIR       SUBDIR"
+
+		entry, err := parseAS400ListLine(line, time.Now(), time.UTC)
+		require.NoError(t, err)
+		require.Equal(t, EntryTypeFolder, entry.Type)
+	})
+
+	t.Run("a filename containing spaces is preserved in full", func(t *testing.T) {
+		line := "USERNAME            31 26/07/26 11:02:23 *STMF      EXAMPLE PALLET DATA.xml"
+
+		entry, err := parseAS400ListLine(line, time.Now(), time.UTC)
+		require.NoError(t, err)
+		require.Equal(t, "EXAMPLE PALLET DATA.xml", entry.Name)
+	})
+
+	t.Run("an unrecognised object type is rejected, not guessed at", func(t *testing.T) {
+		line := "USERNAME            10 26/07/26 11:02:23 *SAVF      BACKUP"
+
+		_, err := parseAS400ListLine(line, time.Now(), time.UTC)
+		require.ErrorIs(t, err, errUnsupportedListLine)
+	})
+
+	t.Run("a Unix-style ls line is rejected, not misinterpreted", func(t *testing.T) {
+		line := "-rw-r--r--   1 owner group     1234 Jan 01 12:00 filename.txt"
+
+		_, err := parseAS400ListLine(line, time.Now(), time.UTC)
+		require.ErrorIs(t, err, errUnsupportedListLine)
+	})
+
+	t.Run("a short garbage line is rejected", func(t *testing.T) {
+		_, err := parseAS400ListLine("not enough fields here", time.Now(), time.UTC)
+		require.ErrorIs(t, err, errUnsupportedListLine)
+	})
+
+	t.Run("parseListLine dispatches to the AS/400 parser as a last resort", func(t *testing.T) {
+		line := "USERNAME            31 26/07/26 11:02:23 *STMF      EXAMPLE_FILE.xml"
+
+		entry, err := parseListLine(line, time.Now(), time.UTC)
+		require.NoError(t, err)
+		require.Equal(t, "EXAMPLE_FILE.xml", entry.Name)
+		require.Equal(t, uint64(31), entry.Size)
+	})
 }

@@ -19,6 +19,7 @@ var listLineParsers = []parseFunc{
 	parseLsListLine,
 	parseDirListLine,
 	parseHostedFTPLine,
+	parseAS400ListLine,
 }
 
 var dirTimeFormats = []string{
@@ -225,6 +226,59 @@ func parseHostedFTPLine(line string, now time.Time, loc *time.Location) (*Entry,
 
 	// Set link count to 1 and attempt to parse as Unix.
 	return parseLsListLine(fields[0]+" 1 "+scanner.Remaining(), now, loc)
+}
+
+// parseAS400ListLine parses the native LIST format used by IBM i (AS/400)
+// QTCP FTP servers, which none of the parsers above recognise, e.g.:
+//
+//	USERNAME            31 26/07/26 11:02:23 *STMF      EXAMPLE_FILE.xml
+//
+// Columns: owner, size, date (DD/MM/YY), time (HH:MM:SS), object type
+// (*STMF/*DIR/...), name. The object-type field is what distinguishes this
+// shape from every other format here, so it's used as the guard that keeps
+// this parser from ever matching another server's LIST output.
+func parseAS400ListLine(line string, _ time.Time, loc *time.Location) (*Entry, error) {
+	scanner := newScanner(line)
+	fields := scanner.NextFields(5)
+	if len(fields) < 5 {
+		return nil, errUnsupportedListLine
+	}
+
+	objType := fields[4]
+	if !strings.HasPrefix(objType, "*") {
+		return nil, errUnsupportedListLine
+	}
+
+	size, err := strconv.ParseUint(fields[1], 10, 64)
+	if err != nil {
+		return nil, errUnsupportedListLine
+	}
+
+	t, err := time.ParseInLocation("02/01/06 15:04:05", fields[2]+" "+fields[3], loc)
+	if err != nil {
+		return nil, errUnsupportedListLine
+	}
+
+	// Only a recognised stream file or directory is reported; any other
+	// object type (e.g. *SAVF, *MBR, *PGM) is conservatively rejected here
+	// rather than guessed at, so a caller that recurses into folders (e.g.
+	// Walker) never mistakes an unsupported object for a real directory.
+	var entryType EntryType
+	switch objType {
+	case "*STMF":
+		entryType = EntryTypeFile
+	case "*DIR":
+		entryType = EntryTypeFolder
+	default:
+		return nil, errUnsupportedListLine
+	}
+
+	return &Entry{
+		Name: strings.TrimLeft(scanner.Remaining(), " "),
+		Type: entryType,
+		Size: size,
+		Time: t,
+	}, nil
 }
 
 // parseListLine parses the various non-standard format returned by the LIST
