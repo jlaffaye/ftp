@@ -52,3 +52,11 @@ func TestEPSV_Parse_MissingPortBetweenPipes_ShouldError(t *testing.T) {
 		t.Fatalf("expected error for malformed EPSV response, got nil")
 	}
 }
+
+func TestNoCommandInjection(t *testing.T) {
+	testCases := []string{"foo\r\nDELETE bar", "foo\rDELETE bar", "foo\nDELETE bar"}
+	for _, testCase := range testCases {
+		err := checkForCommandInjection("TEST %s", testCase)
+		assert.Equal(t, ErrInvalidCommand, err)
+	}
+}

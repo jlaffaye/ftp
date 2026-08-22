@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
@@ -39,6 +40,10 @@ type TransferType string
 const (
 	TransferTypeBinary = TransferType("I")
 	TransferTypeASCII  = TransferType("A")
+)
+
+var (
+	ErrInvalidCommand = errors.New("command contains CR or LF")
 )
 
 // Time format used by the MDTM and MFMT commands
@@ -604,12 +609,26 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 // cmd is a helper function to execute a command and check for the expected FTP
 // return code
 func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int, string, error) {
+	if err := checkForCommandInjection(format, args...); err != nil {
+		return 0, "", err
+	}
+
 	_, err := c.conn.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
 	}
 
 	return c.conn.ReadResponse(expected)
+}
+
+func checkForCommandInjection(format string, args ...interface{}) error {
+	res := fmt.Sprintf(format, args...)
+
+	if strings.ContainsAny(res, "\r\n") {
+		return ErrInvalidCommand
+	}
+
+	return nil
 }
 
 // cmdDataConnFrom executes a command which require a FTP data connection.
