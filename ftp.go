@@ -670,17 +670,12 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 		}
 	}
 
-	_, err = c.conn.Cmd(format, args...)
+	code, msg, err := c.cmd(-1, format, args...)
 	if err != nil {
 		_ = conn.Close()
 		return nil, err
 	}
 
-	code, msg, err := c.conn.ReadResponse(-1)
-	if err != nil {
-		_ = conn.Close()
-		return nil, err
-	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend {
 		_ = conn.Close()
 		return nil, &textproto.Error{Code: code, Msg: msg}
