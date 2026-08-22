@@ -17,16 +17,17 @@ import (
 )
 
 type ftpMock struct {
-	t        *testing.T
-	address  string
-	modtime  string // no-time, std-time, vsftpd
-	listener *net.TCPListener
-	proto    *textproto.Conn
-	commands []string // list of received commands
-	lastFull string   // full last command
-	rest     int
-	fileCont *bytes.Buffer
-	dataConn *mockDataConn
+	t           *testing.T
+	address     string
+	modtime     string // no-time, std-time, vsftpd
+	listener    *net.TCPListener
+	proto       *textproto.Conn
+	commands    []string // list of received commands
+	lastFull    string   // full last command
+	rest        int
+	fileCont    *bytes.Buffer
+	dataConn    *mockDataConn
+	bogusPasvIP bool
 	sync.WaitGroup
 }
 
@@ -144,7 +145,12 @@ func (mock *ftpMock) listen() {
 			p1 := int(p / 256)
 			p2 := p % 256
 
-			mock.printfLine("227 Entering Passive Mode (127,0,0,1,%d,%d).", p1, p2)
+			if mock.bogusPasvIP {
+				mock.printfLine("227 Entering Passive Mode (127,0,0,2,%d,%d).", p1, p2)
+			} else {
+				mock.printfLine("227 Entering Passive Mode (127,0,0,1,%d,%d).", p1, p2)
+			}
+
 		case "EPSV":
 			p, err := mock.listenDataConn()
 			if err != nil {

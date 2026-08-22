@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -228,6 +229,31 @@ func TestWrongLogin(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
+}
+
+func TestPASVIgnoresServerSuppliedHost(t *testing.T) {
+	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second))
+
+	mock.bogusPasvIP = true
+	host, _, err := c.pasv()
+	require.NoError(t, err)
+
+	assert.Equal(t, "127.0.0.1", host, "should use IP from the control conn")
+
+	closeConn(t, mock, c, []string{"PASV"})
+}
+
+func TestTrustPasvIP(t *testing.T) {
+	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second),
+		DialWithTrustPasvIP(true))
+
+	mock.bogusPasvIP = true
+	host, _, err := c.pasv()
+	require.NoError(t, err)
+
+	assert.Equal(t, "127.0.0.2", host, "should use IP from the PASV result")
+
+	closeConn(t, mock, c, []string{"PASV"})
 }
 
 func TestDeleteDirRecur(t *testing.T) {

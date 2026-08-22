@@ -80,6 +80,7 @@ type dialOptions struct {
 	tlsConfig       *tls.Config
 	explicitTLS     bool
 	disableEPSV     bool
+	trustPasvIP     bool
 	disableUTF8     bool
 	disableMLSD     bool
 	writingMDTM     bool
@@ -219,6 +220,15 @@ func DialWithNetConn(conn net.Conn) DialOption {
 func DialWithDisabledEPSV(disabled bool) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.disableEPSV = disabled
+	}}
+}
+
+// DialWithTrustPasvIP returns a DialOption that makes the ServerConn use the host
+// from the server's PASV reply for the data connection. It is off by default
+// to protect from SSRF.
+func DialWithTrustPasvIP(trust bool) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.trustPasvIP = trust
 	}}
 }
 
@@ -535,6 +545,10 @@ func (c *ServerConn) pasv() (host string, port int, err error) {
 
 	// Make the IP address to connect to
 	host = strings.Join(pasvData[0:4], ".")
+
+	if !c.options.trustPasvIP {
+		return c.host, port, nil
+	}
 
 	if c.host != host {
 		if cmdIP := net.ParseIP(c.host); cmdIP != nil {
