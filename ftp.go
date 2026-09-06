@@ -66,6 +66,7 @@ type ServerConn struct {
 	mdtmSupported bool
 	mdtmCanWrite  bool
 	usePRET       bool
+	chmodSupported bool
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -412,6 +413,14 @@ func (c *ServerConn) Login(user, password string) error {
 		}
 	}
 
+	// Check if chmod is allowed, first check features, then help site
+	_, c.chmodSupported = c.features["SITE CHMOD"]
+	if ! c.chmodSupported {
+		code, msg, err := c.cmd(214, "HELP SITE")
+		if err == nil && strings.Contains(strings.ToUpper(msg), "CHMOD") {
+			c.chmodSupported = true
+	}
+	
 	return err
 }
 
@@ -914,6 +923,29 @@ func (c *ServerConn) SetTime(path string, t time.Time) (err error) {
 // can use SetTime to set file time.
 func (c *ServerConn) IsSetTimeSupported() bool {
 	return c.mfmtSupported || c.mdtmCanWrite
+}
+
+// Chmod changes the permissions of the specified file using SITE CHMOD.
+// Returns ErrNotSupported if the server does not support SITE CHMOD.
+func (c *ServerConn) Chmod(path string, mode os.FileMode) error {
+	code, msg, err := c.cmd(-1, "SITE CHMOD %04o %s", mode.Perm(), path)
+	if err != nil {
+		return err
+	}
+
+	switch code {
+	case 200, 250:
+		return nil
+	case 500, 502, 504:
+		return errors.New("SITE CHMOD is not supported by server")
+	default:
+		return fmt.Errorf("SITE CHMOD failed: %d %s", code, msg)
+	}
+}
+// IsChmodSupported allows library callers to check in advance that they
+// can use Chmod to set permissions
+func (c *ServerConn) IsChmodSupported() bool {
+	return c.chmodSupported
 }
 
 // Retr issues a RETR FTP command to fetch the specified file from the remote
