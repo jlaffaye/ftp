@@ -722,6 +722,22 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
+	return c.list(path, 0, 0)
+}
+
+// ErrListingLimit is returned when a directory listing exceeds a requested limit.
+var ErrListingLimit = errors.New("directory listing exceeds limit")
+
+// ListWithLimits limits listing records and data bytes, including skipped records.
+// Both limits must be positive; exceeding either closes the connection and returns no entries.
+func (c *ServerConn) ListWithLimits(path string, maxEntries, maxBytes int) ([]*Entry, error) {
+	if maxEntries <= 0 || maxBytes <= 0 {
+		return nil, errors.New("directory listing limits must be positive")
+	}
+	return c.list(path, maxEntries, maxBytes)
+}
+
+func (c *ServerConn) list(path string, maxEntries, maxBytes int) (entries []*Entry, err error) {
 	var cmd string
 	var parser parseFunc
 
@@ -749,9 +765,20 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 
 	r := &Response{conn: conn, c: c}
 
-	scanner := bufio.NewScanner(c.options.wrapStream(r))
+	var reader io.Reader = c.options.wrapStream(r)
+	if maxBytes > 0 {
+		reader = &listingLimitReader{reader: reader, remaining: int64(maxBytes)}
+	}
+	scanner := bufio.NewScanner(reader)
+	records := 0
 	now := time.Now()
 	for scanner.Scan() {
+		records++
+		if maxEntries > 0 && records > maxEntries {
+			_ = conn.Close()
+			_ = c.netConn.Close()
+			return nil, ErrListingLimit
+		}
 		entry, errParse := parser(scanner.Text(), now, c.options.location)
 		if errParse == nil {
 			entries = append(entries, entry)
@@ -759,6 +786,11 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	}
 
 	if err := scanner.Err(); err != nil {
+		if errors.Is(err, ErrListingLimit) {
+			_ = conn.Close()
+			_ = c.netConn.Close()
+			return nil, ErrListingLimit
+		}
 		errs = append(errs, err)
 	}
 	if err := r.Close(); err != nil {
