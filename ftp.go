@@ -986,12 +986,16 @@ func (c *ServerConn) Stor(path string, r io.Reader) error {
 // connection deadline right before checking the data closing status.
 func (c *ServerConn) checkDataShut() error {
 	if c.options.shutTimeout != 0 {
+		defer c.netConn.SetDeadline(time.Time{})
 		shutDeadline := time.Now().Add(c.options.shutTimeout)
 		if err := c.netConn.SetDeadline(shutDeadline); err != nil {
 			return err
 		}
 	}
 	_, _, err := c.conn.ReadResponse(StatusClosingDataConnection)
+	if err != nil {
+		_ = c.netConn.Close()
+	}
 	return err
 }
 
