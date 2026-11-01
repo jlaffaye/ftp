@@ -453,6 +453,16 @@ func (c *ServerConn) feat() error {
 		}
 
 		c.features[command] = commandDesc
+		
+		if command == "OPTS" && len(featureElements) == 2 {
+			for _, opt := range strings.Split(featureElements[1], ";") {
+				opt = strings.TrimSpace(opt)
+				if strings.EqualFold(opt, "UTF8") {
+					c.features["UTF8"] = ""
+					break
+				}
+			}
+		}
 	}
 
 	return nil
