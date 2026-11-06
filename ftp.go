@@ -1021,8 +1021,16 @@ func (c *ServerConn) Append(path string, r io.Reader) error {
 
 	var errs []error
 
-	if _, err := io.Copy(conn, r); err != nil {
+	if n, err := io.Copy(conn, r); err != nil {
 		errs = append(errs, err)
+	} else if n == 0 {
+		// As in StorFrom, an empty upload must complete the TLS handshake
+		// before closing the data connection.
+		if do, ok := conn.(interface{ Handshake() error }); ok {
+			if err := do.Handshake(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 	}
 
 	if err := conn.Close(); err != nil {
