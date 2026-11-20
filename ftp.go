@@ -318,6 +318,9 @@ func DialWithDebugOutput(w io.Writer) DialOption {
 // DialWithDialFunc returns a DialOption that configures the ServerConn to use the
 // specified function to establish both control and data connections
 //
+// With DialWithExplicitTLS, the returned connections are upgraded to TLS by the
+// client. With DialWithTLS, the function must return TLS connections itself.
+//
 // If used together with the DialWithNetConn option, the DialWithNetConn
 // takes precedence for the control connection, while data connections will
 // be established using function specified with the DialWithDialFunc option
@@ -593,7 +596,14 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	if c.options.dialFunc != nil {
-		return c.options.dialFunc("tcp", addr)
+		conn, err := c.options.dialFunc("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		if c.options.explicitTLS {
+			conn = tls.Client(conn, c.options.tlsConfig)
+		}
+		return conn, nil
 	}
 
 	if c.options.tlsConfig != nil {
