@@ -64,6 +64,11 @@ var listTests = []line{
 	{"modify=20150813175250;perm=adfr;size=951;type=file;unique=119FBB87UE;UNIX.group=0;UNIX.mode=0644;UNIX.owner=0; welcome.msg", "welcome.msg", 951, EntryTypeFile, newTime(2015, time.August, 13, 17, 52, 50)},
 	// Format and types have first letter UpperCase
 	{"Modify=20150813175250;Perm=adfr;Size=951;Type=file;Unique=119FBB87UE;UNIX.group=0;UNIX.mode=0644;UNIX.owner=0; welcome.msg", "welcome.msg", 951, EntryTypeFile, newTime(2015, time.August, 13, 17, 52, 50)},
+	// RFC 3659 section 7.5.1: type values are case independent, unlike filenames.
+	{"Type=DiR; Mixed Case", "Mixed Case", 0, EntryTypeFolder, time.Time{}},
+	{"TYPE=CDIR; .", ".", 0, EntryTypeFolder, time.Time{}},
+	{"type=Pdir; ..", "..", 0, EntryTypeFolder, time.Time{}},
+	{"Type=FiLe;Size=951; Welcome.MSG", "Welcome.MSG", 951, EntryTypeFile, time.Time{}},
 
 	// DOS DIR command output
 	{"08-07-15  07:50PM                  718 Post_PRR_20150901_1166_265118_13049.dat", "Post_PRR_20150901_1166_265118_13049.dat", 718, EntryTypeFile, newTime(2015, time.August, 7, 19, 50)},
