@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -252,6 +253,49 @@ func TestTrustPasvIP(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "127.0.0.2", host, "should use IP from the PASV result")
+
+	closeConn(t, mock, c, []string{"PASV"})
+}
+
+// failDataDials returns a DialOption which connects the control connection
+// but fails every data connection with errDataDial.
+func failDataDials() (DialOption, error) {
+	errDataDial := errors.New("data connection refused")
+	dials := 0
+	return DialWithDialFunc(func(network, address string) (net.Conn, error) {
+		dials++
+		if dials > 1 {
+			return nil, errDataDial
+		}
+		return net.Dial(network, address)
+	}), errDataDial
+}
+
+func TestPasvIPIgnoredError(t *testing.T) {
+	failDials, errDataDial := failDataDials()
+	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second),
+		DialWithDisabledEPSV(true), failDials)
+
+	mock.bogusPasvIP = true
+	_, err := c.NameList("/")
+	require.Error(t, err)
+
+	var pasvErr *PasvIPIgnoredError
+	require.ErrorAs(t, err, &pasvErr)
+	assert.Equal(t, "127.0.0.2", pasvErr.PasvHost)
+	assert.Equal(t, "127.0.0.1", pasvErr.Host)
+	assert.ErrorIs(t, err, errDataDial)
+
+	closeConn(t, mock, c, []string{"PASV"})
+}
+
+func TestPasvIPNotIgnoredError(t *testing.T) {
+	failDials, errDataDial := failDataDials()
+	mock, c := openConn(t, "127.0.0.1", DialWithTimeout(5*time.Second),
+		DialWithDisabledEPSV(true), failDials)
+
+	_, err := c.NameList("/")
+	assert.Equal(t, errDataDial, err, "error should not be wrapped when the PASV host is the control host")
 
 	closeConn(t, mock, c, []string{"PASV"})
 }
