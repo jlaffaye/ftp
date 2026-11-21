@@ -565,6 +565,7 @@ func (c *ServerConn) pasv() (host string, port int, err error) {
 func isBogusDataIP(cmdIP, dataIP net.IP) bool {
 	// Logic stolen from lftp (https://github.com/lavv17/lftp/blob/d67fc14d085849a6b0418bb3e912fea2e94c18d1/src/ftpclass.cc#L769)
 	return dataIP.IsMulticast() ||
+		dataIP.IsUnspecified() ||
 		cmdIP.IsPrivate() != dataIP.IsPrivate() ||
 		cmdIP.IsLoopback() != dataIP.IsLoopback()
 }

@@ -16,6 +16,7 @@ func TestBogusDataIP(t *testing.T) {
 		{net.IPv4(192, 168, 1, 1), net.IPv4(1, 1, 1, 1), true},
 		{net.IPv4(10, 65, 1, 1), net.IPv4(1, 1, 1, 1), true},
 		{net.IPv4(10, 65, 25, 1), net.IPv4(10, 65, 8, 1), false},
+		{net.IPv4(1, 2, 3, 4), net.IPv4(0, 0, 0, 0), true},
 	} {
 		if got, want := isBogusDataIP(tC.cmd, tC.data), tC.bogus; got != want {
 			t.Errorf("%s,%s got %t, wanted %t", tC.cmd, tC.data, got, want)
