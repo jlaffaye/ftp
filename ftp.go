@@ -53,10 +53,11 @@ const timeFormat = "20060102150405"
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
 type ServerConn struct {
-	options *dialOptions
-	conn    *textproto.Conn // connection wrapper for text protocol
-	netConn net.Conn        // underlying network connection
-	host    string
+	options         *dialOptions
+	conn            *textproto.Conn // connection wrapper for text protocol
+	netConn         net.Conn        // underlying network connection
+	host            string
+	ignoredPasvHost string // host from the last PASV reply if it was ignored
 
 	// Server capabilities discovered at runtime
 	features      map[string]string
@@ -66,6 +67,29 @@ type ServerConn struct {
 	mdtmSupported bool
 	mdtmCanWrite  bool
 	usePRET       bool
+}
+
+// PasvIPIgnoredError is returned when dialing a data connection fails
+// after the host in the server's PASV reply was ignored because
+// DialWithTrustPasvIP was not set. The server may need DialWithTrustPasvIP
+// to work.
+//
+// Errors after the dial, such as a failed TLS handshake on the data
+// connection, are not wrapped.
+type PasvIPIgnoredError struct {
+	PasvHost string // host from the server's PASV reply
+	Host     string // host the data connection was made to instead
+	Err      error  // error from the data connection
+}
+
+// Error returns the error string
+func (e *PasvIPIgnoredError) Error() string {
+	return fmt.Sprintf("%v (the server's PASV reply host %s was ignored, see DialWithTrustPasvIP)", e.Err, e.PasvHost)
+}
+
+// Unwrap returns the error from the data connection
+func (e *PasvIPIgnoredError) Unwrap() error {
+	return e.Err
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -216,7 +240,10 @@ func DialWithNetConn(conn net.Conn) DialOption {
 }
 
 // DialWithDisabledEPSV returns a DialOption that configures the ServerConn with EPSV disabled
-// Note that EPSV is only used when advertised in the server features.
+//
+// EPSV is tried first for each data connection regardless of the server
+// features. If the server rejects it, PASV is used for this and all later
+// data connections.
 func DialWithDisabledEPSV(disabled bool) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.disableEPSV = disabled
@@ -226,6 +253,9 @@ func DialWithDisabledEPSV(disabled bool) DialOption {
 // DialWithTrustPasvIP returns a DialOption that makes the ServerConn use the host
 // from the server's PASV reply for the data connection. It is off by default
 // to protect from SSRF.
+//
+// If it is off and dialing the data connection fails after the PASV reply
+// host was ignored then the error will be a *PasvIPIgnoredError.
 func DialWithTrustPasvIP(trust bool) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.trustPasvIP = trust
@@ -546,10 +576,6 @@ func (c *ServerConn) pasv() (host string, port int, err error) {
 	// Make the IP address to connect to
 	host = strings.Join(pasvData[0:4], ".")
 
-	if !c.options.trustPasvIP {
-		return c.host, port, nil
-	}
-
 	if c.host != host {
 		if cmdIP := net.ParseIP(c.host); cmdIP != nil {
 			if dataIP := net.ParseIP(host); dataIP != nil {
@@ -558,6 +584,14 @@ func (c *ServerConn) pasv() (host string, port int, err error) {
 				}
 			}
 		}
+	}
+
+	if !c.options.trustPasvIP {
+		// record the ignored PASV host if valid and differs from the control connection host
+		if dataIP := net.ParseIP(host); dataIP != nil && !dataIP.Equal(net.ParseIP(c.host)) {
+			c.ignoredPasvHost = host
+		}
+		return c.host, port, nil
 	}
 	return host, port, nil
 }
@@ -572,6 +606,7 @@ func isBogusDataIP(cmdIP, dataIP net.IP) bool {
 // getDataConnPort returns a host, port for a new data connection
 // it uses the best available method to do so
 func (c *ServerConn) getDataConnPort() (string, int, error) {
+	c.ignoredPasvHost = ""
 	if !c.options.disableEPSV && !c.skipEPSV {
 		if port, err := c.epsv(); err == nil {
 			return c.host, port, nil
@@ -585,11 +620,16 @@ func (c *ServerConn) getDataConnPort() (string, int, error) {
 }
 
 // openDataConn creates a new FTP data connection.
-func (c *ServerConn) openDataConn() (net.Conn, error) {
+func (c *ServerConn) openDataConn() (_ net.Conn, err error) {
 	host, port, err := c.getDataConnPort()
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil && c.ignoredPasvHost != "" {
+			err = &PasvIPIgnoredError{PasvHost: c.ignoredPasvHost, Host: host, Err: err}
+		}
+	}()
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	if c.options.dialFunc != nil {
