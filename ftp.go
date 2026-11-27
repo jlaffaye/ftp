@@ -42,9 +42,7 @@ const (
 	TransferTypeASCII  = TransferType("A")
 )
 
-var (
-	ErrInvalidCommand = errors.New("command contains CR or LF")
-)
+var ErrInvalidCommand = errors.New("command contains CR or LF")
 
 // Time format used by the MDTM and MFMT commands
 const timeFormat = "20060102150405"
@@ -165,7 +163,6 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 				return tlsDialer.DialContext(ctx, network, addr)
 			}
 		} else {
-
 			dialFunc = func(network, address string) (net.Conn, error) {
 				return do.dialer.DialContext(ctx, network, addr)
 			}
@@ -320,8 +317,8 @@ func DialWithContext(ctx context.Context) DialOption {
 // DialWithTLS returns a DialOption that configures the ServerConn with specified TLS config
 //
 // If called together with the DialWithDialFunc option, the DialWithDialFunc function
-// will be used when dialing new connections but regardless of the function,
-// the connection will be treated as a TLS connection.
+// will be used when dialing new connections and, if the connection is not a TLS one,
+// the provided tls.Config will be used to upgrade it to one.
 func DialWithTLS(tlsConfig *tls.Config) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.tlsConfig = tlsConfig
@@ -634,7 +631,19 @@ func (c *ServerConn) openDataConn() (_ net.Conn, err error) {
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	if c.options.dialFunc != nil {
-		return c.options.dialFunc("tcp", addr)
+		conn, err := c.options.dialFunc("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+
+		// Upgrade the connection to TLS if configured and the dialer
+		// has not returned a [tls.Conn].
+		if _, ok := conn.(*tls.Conn); !ok && c.options.tlsConfig != nil {
+			tlsConn := tls.Client(conn, c.options.tlsConfig)
+			return tlsConn, nil
+		}
+
+		return conn, nil
 	}
 
 	if c.options.tlsConfig != nil {

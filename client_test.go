@@ -2,10 +2,13 @@ package ftp
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -467,6 +470,32 @@ func TestDialWithDialFunc(t *testing.T) {
 
 	_, err := Dial("bogus-address", DialWithDialFunc(f))
 	assert.Equal(t, dialErr, err)
+}
+
+func TestStorDialFuncTLS(t *testing.T) {
+	cert := selfSignedCert(t)
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+	pool := x509.NewCertPool()
+	pool.AddCert(leaf)
+
+	// A custom dialFunc with a TLS config: the control connection stays
+	// plain, the data connection must be upgraded to TLS.
+	mock, c := openConn(t, "127.0.0.1",
+		DialWithDialFunc(net.Dial),
+		DialWithTLS(&tls.Config{RootCAs: pool, ServerName: "127.0.0.1"}))
+	mock.dataTLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+
+	err = c.Stor("test-file", strings.NewReader(testData))
+	require.NoError(t, err)
+
+	assert.Equal(t, testData, mock.fileCont.String())
+
+	// PBSZ and PROT are sent by Login when TLS is configured.
+	expected := []string{"USER", "PASS", "FEAT", "TYPE", "OPTS", "PBSZ", "PROT", "EPSV", "STOR", "QUIT"}
+	require.NoError(t, c.Quit())
+	mock.Wait()
+	assert.Equal(t, expected, mock.commands)
 }
 
 func TestDialWithDialer(t *testing.T) {

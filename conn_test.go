@@ -2,8 +2,15 @@ package ftp
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"io"
+	"math/big"
 	"net"
 	"net/textproto"
 	"strconv"
@@ -28,6 +35,9 @@ type ftpMock struct {
 	fileCont    *bytes.Buffer
 	dataConn    *mockDataConn
 	bogusPasvIP bool
+	// dataTLS, when set, makes the mock serve data connections over TLS.
+	// Set it after openConn, before issuing the first data command.
+	dataTLS *tls.Config
 	sync.WaitGroup
 }
 
@@ -271,12 +281,14 @@ func (mock *ftpMock) listen() {
 			mock.printfLine("%s", answer)
 		case "NOOP":
 			mock.printfLine("200 NOOP ok.")
+		case "PBSZ", "PROT":
+			mock.printfLine("200 OK")
 		case "OPTS":
 			if len(cmdParts) != 3 {
 				mock.printfLine("500 wrong number of arguments")
 				break
 			}
-			if (strings.Join(cmdParts[1:], " ")) == "UTF8 ON" {
+			if strings.Join(cmdParts[1:], " ") == "UTF8 ON" {
 				mock.printfLine("200 OK, UTF-8 enabled")
 			}
 		case "REIN":
@@ -372,6 +384,11 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 			return
 		}
 
+		if mock.dataTLS != nil {
+			// The handshake happens on the first Read or Write.
+			conn = tls.Server(conn, mock.dataTLS)
+		}
+
 		dataConn.conn = conn
 		dataConn.Done()
 	}()
@@ -401,6 +418,28 @@ func (mock *ftpMock) Addr() string {
 // Closes the listening socket
 func (mock *ftpMock) Close() {
 	assert.NoError(mock.t, mock.listener.Close(), "closing listener")
+}
+
+// selfSignedCert returns a throwaway self-signed certificate valid for 127.0.0.1.
+func selfSignedCert(t *testing.T) tls.Certificate {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "127.0.0.1"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 }
 
 // Helper to return a client connected to a mock server
