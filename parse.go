@@ -3,14 +3,17 @@ package ftp
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
-var errUnsupportedListLine = errors.New("unsupported LIST line")
-var errUnsupportedListDate = errors.New("unsupported LIST date")
-var errUnknownListEntryType = errors.New("unknown entry type")
+var (
+	errUnsupportedListLine  = errors.New("unsupported LIST line")
+	errUnsupportedListDate  = errors.New("unsupported LIST date")
+	errUnknownListEntryType = errors.New("unknown entry type")
+)
 
 type parseFunc func(string, time.Time, *time.Location) (*Entry, error)
 
@@ -76,6 +79,15 @@ func parseNextRFC3659ListLine(line string, loc *time.Location, e *Entry) (*Entry
 			if err := e.setSize(value); err != nil {
 				return nil, err
 			}
+		case "unix.owner":
+			e.Owner = value
+		case "unix.group":
+			e.Group = value
+		case "unix.mode":
+			// Value is in octal base (e.g., "0755")
+			if mode, err := strconv.ParseUint(value, 8, 32); err == nil {
+				e.Mode = os.FileMode(mode)
+			}
 		}
 	}
 	return e, nil
@@ -84,7 +96,6 @@ func parseNextRFC3659ListLine(line string, loc *time.Location, e *Entry) (*Entry
 // parseLsListLine parses a directory line in a format based on the output of
 // the UNIX ls command.
 func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, error) {
-
 	// Has the first field a length of exactly 10 bytes
 	// - or 10 bytes with an additional '+' character for indicating ACLs?
 	// If not, return.
@@ -135,8 +146,16 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	}
 
 	e := &Entry{
-		Name: scanner.Remaining(),
+		Name:  scanner.Remaining(),
+		Owner: fields[2],
+		Group: fields[3],
 	}
+
+	// Parse permissions from the first field (skip the first character which is the type)
+	if len(fields[0]) >= 10 {
+		e.Mode = parseUnixPerms(fields[0][1:10])
+	}
+
 	switch fields[0][0] {
 	case '-':
 		e.Type = EntryTypeFile
@@ -145,6 +164,10 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 		}
 	case 'd':
 		e.Type = EntryTypeFolder
+		if err := e.setSize(fields[4]); err != nil {
+			return nil, err
+		}
+
 	case 'l':
 		e.Type = EntryTypeLink
 
@@ -274,4 +297,63 @@ func (e *Entry) setTime(fields []string, now time.Time, loc *time.Location) (err
 		e.Time, err = time.ParseInLocation("_2 Jan 2006 15:04", timeStr, loc)
 	}
 	return
+}
+
+// parseUnixPerms converts a Unix permission string (e.g., "rwxr-xr-x") to os.FileMode
+func parseUnixPerms(perms string) os.FileMode {
+	if len(perms) < 9 {
+		return 0
+	}
+
+	var mode os.FileMode
+
+	// Owner permissions
+	if perms[0] == 'r' {
+		mode |= 0o400
+	}
+	if perms[1] == 'w' {
+		mode |= 0o200
+	}
+	switch perms[2] {
+	case 'x':
+		mode |= 0o100
+	case 's':
+		mode |= 0o100 | os.ModeSetuid
+	case 'S':
+		mode |= os.ModeSetuid
+	}
+
+	// Group permissions
+	if perms[3] == 'r' {
+		mode |= 0o040
+	}
+	if perms[4] == 'w' {
+		mode |= 0o020
+	}
+	switch perms[5] {
+	case 'x':
+		mode |= 0o010
+	case 's':
+		mode |= 0o010 | os.ModeSetgid
+	case 'S':
+		mode |= os.ModeSetgid
+	}
+
+	// Other permissions
+	if perms[6] == 'r' {
+		mode |= 0o004
+	}
+	if perms[7] == 'w' {
+		mode |= 0o002
+	}
+	switch perms[8] {
+	case 'x':
+		mode |= 0o001
+	case 't':
+		mode |= 0o001 | os.ModeSticky
+	case 'T':
+		mode |= os.ModeSticky
+	}
+
+	return mode
 }

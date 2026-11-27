@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/textproto"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -42,9 +43,7 @@ const (
 	TransferTypeASCII  = TransferType("A")
 )
 
-var (
-	ErrInvalidCommand = errors.New("command contains CR or LF")
-)
+var ErrInvalidCommand = errors.New("command contains CR or LF")
 
 // Time format used by the MDTM and MFMT commands
 const timeFormat = "20060102150405"
@@ -122,6 +121,9 @@ type Entry struct {
 	Type   EntryType
 	Size   uint64
 	Time   time.Time
+	Owner  string
+	Group  string
+	Mode   os.FileMode
 }
 
 // Response represents a data-connection
@@ -165,7 +167,6 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 				return tlsDialer.DialContext(ctx, network, addr)
 			}
 		} else {
-
 			dialFunc = func(network, address string) (net.Conn, error) {
 				return do.dialer.DialContext(ctx, network, addr)
 			}
